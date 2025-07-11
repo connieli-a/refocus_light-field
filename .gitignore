@@ -1,0 +1,10 @@
+# 忽略 VS 文件和临时缓存
+.vs/
+*.ipch
+*.pdb
+*.obj
+*.exe
+*.user
+*.VC.db
+build/
+
