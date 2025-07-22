@@ -1,6 +1,7 @@
 @echo off
 REM 进入构建目录
-cd out\build\x64-debug
+REM cd out\build\x64-debug
+cd out\build\x64-release
 
 REM 运行 ninja 编译
 ninja

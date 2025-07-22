@@ -1,25 +1,3 @@
 # ninja log v6
-10	3282	7738514595264283	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3283	4285	7738514627894854	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-20	4755	7739083347670491	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-4756	7620	7739083394941351	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-26	3350	7739084520739328	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3351	4342	7739084554054348	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-27	3303	7739085193647041	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3305	4261	7739085226347739	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-32	3276	7739086231397046	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3277	4273	7739086263886577	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-27	3282	7739087524466088	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3283	4294	7739087557081654	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-27	3291	7739088702881141	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3292	4249	7739088735499442	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-29	3924	7739210305216685	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3926	5020	7739210344208571	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-27	3346	7739211142810024	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3346	4323	7739211175996962	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-27	3338	7739211645557764	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3340	4395	7739211678676722	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-28	3322	7739211914909725	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3323	4345	7739211947848083	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
-28	3357	7739212250163018	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
-3358	4327	7739212283460623	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
+27	3230	7747950366666754	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	122011fb72ee368c
+3232	4293	7747950398832681	refocus_cmake/refocus_cmake.exe	4a4d6fe37a8b52b4
