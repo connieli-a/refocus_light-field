@@ -3,7 +3,9 @@
 #
 
 # 将源代码添加到此项目的可执行文件。
+find_package(OpenMP REQUIRED)
 find_package(OpenCV REQUIRED)
+
 set(OpenCV_DIR "G:\\program_files\\vcpkg\\installed\\x64-windows\\share\\opencv4")
 set(quirc_DIR "G:\\program_files\\vcpkg\\installed\\x64-windows\\share\\quirc")
 
@@ -15,4 +17,6 @@ endif()
 
 # TODO: 如有需要，请添加测试并安装目标。
 #target_include_directories(refocus_cmake PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(refocus_cmake PRIVATE ${OpenCV_LIBS})
+target_link_libraries(refocus_cmake PRIVATE ${OpenCV_LIBS} OpenMP::OpenMP_CXX)
+
+

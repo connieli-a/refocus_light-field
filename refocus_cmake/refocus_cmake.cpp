@@ -1,12 +1,21 @@
 ﻿#include "refocus_cmake.h"
-
-
-
-
-
+int main1(){
+    int max_threads = omp_get_max_threads();
+    cout<<max_threads<<endl;
+     omp_set_num_threads(4);
+    #pragma omp parallel for
+    for (int i = 0; i < 8; ++i) {
+        int tid = omp_get_thread_num();
+        // printf("Thread %d is working on i = %d\n", omp_get_thread_num(), i);
+        #pragma omp critical
+        cout << "Thread " << tid << " is working on i = " << i << std::endl;
+    }
+    return 0;
+}
 int main()
 {
-    cout << "filepath: " << std::filesystem::current_path().string() << std::endl;
+    omp_set_num_threads(omp_get_max_threads());
+    // cout << "filepath: " << std::filesystem::current_path().string() << std::endl;
     Mat image = imread("data/Image__2025-05-23__16-37-19.bmp");
     Mat image_mla = imread("data/original_20250617_180038.bmp");
     Mat image_rgb;
@@ -75,28 +84,15 @@ int main()
         sortedList = move(rangeList);
         
         
-        
+        //prepared work
         //extract the patch image to the array
         int patch_size = 64;
         float tolerance = 15;
+        int n_cols = 0;
         //rows: collect the circle centers and sort by the y axis and x axis
-        vector<vector<CircleInf>> rows = extract_rows(sortedList, tolerance);
-        // //patches: cut each microlens images based on each circle center and collect them into the two dimension array
-        // vector<vector<Mat>>patches = extract_microlens_patches(image_mla, patch_size, rows);
-        // vector<vector<vector<vector<Vec3b>>>> vp_img_arr;
-        vector<Mat> views;
-        int n_rows, n_cols;
-        // int patch_h, patch_w;
-        //vp_img_arr: change the sequence from [n_rows, n_cols, patch_h,patch_w] to [patch_h,patch_w,n_rows,n_cols]
-        //images: the images array of each angle
-        // transpose_patch_array(patches, vp_img_arr, images, n_rows, n_cols, patch_h, patch_w);
-        //    cout<<"111";
-        tranform_image(image_mla, patch_size, rows, views, n_rows, n_cols);
+        vector<vector<CircleInf>> rows = extract_rows(sortedList, tolerance,  n_cols);
+        int n_rows = static_cast<int>(rows.size());
         
-        
-        
-        
-        //refocus processing optical parament
         int num_depth_plane = 1;
         float start = -5, end = 0;
         //create the disparity table
@@ -107,7 +103,7 @@ int main()
         vector<float> depth_range;
         //generate depth_range
         if(num_depth_plane == 1)
-        depth_range.push_back(start);
+            depth_range.push_back(start);
         else{
             float step = static_cast<float>(end - start) / static_cast<float>(num_depth_plane - 1);
             for (int i = 0; i < num_depth_plane; ++i)
@@ -129,20 +125,46 @@ int main()
                 }
             }
         }
+        
+        // //patches: cut each microlens images based on each circle center and collect them into the two dimension array
+        // vector<vector<Mat>>patches = extract_microlens_patches(image_mla, patch_size, rows);
+        // vector<vector<vector<vector<Vec3b>>>> vp_img_arr;
+        auto start2 = chrono::high_resolution_clock::now();
+        // vector<Mat> views;
+        vector<Vec3f> images;
+        // int patch_h, patch_w;
+        //vp_img_arr: change the sequence from [n_rows, n_cols, patch_h,patch_w] to [patch_h,patch_w,n_rows,n_cols]
+        //images: the images array of each angle
+        // transpose_patch_array(patches, vp_img_arr, images, n_rows, n_cols, patch_h, patch_w);
+        //    cout<<"111";
+        transform_image(image_mla, patch_size, rows, images, n_rows, n_cols);
+        auto end2 = chrono::high_resolution_clock::now();
+        
+        
+        auto start3 = chrono::high_resolution_clock::now();
+        //refocus processing optical parament
         //volume: refocused image array
-        vector<Mat> volume = shift_and_sum(views, n_rows, n_cols, num_depth_plane, patch_size, disparity_x, disparity_y);
-        auto start1 = chrono::high_resolution_clock::now();
-        auto end1 = chrono::high_resolution_clock::now(); 
+        vector<Mat> volume = shift_and_sum(images, n_rows, n_cols, num_depth_plane, patch_size, disparity_x, disparity_y);
+        auto end3 = chrono::high_resolution_clock::now();
         
-        auto duration1 = duration_cast<chrono::milliseconds>(end1 - start1);
-        cout << "running time：" << duration1.count() << " milliseconds" << endl;    
         
-        // for (size_t i = 0; i < volume.size(); i++)
-        // {
-            //     /* code */
-        //     imshow("image",volume[i]);
-        //     waitKey(0);
-        // }
+        auto duration2 = chrono::duration<double,milli>(end2 - start2);
+        auto duration3 = chrono::duration<double,milli>(end3 - start3);
+
+           
+        std::cout << "running time2：" << duration2.count() << " milliseconds" << endl;    
+        std::cout << "running time3：" << duration3.count() << " milliseconds" << endl;    
+
+        // auto inner_start = chrono::high_resolution_clock::now();
+        // auto inner_end = chrono::high_resolution_clock::now();
+        // auto inner_dur = duration_cast<chrono::nanoseconds>(inner_end - inner_start).count();
+        // cout<<inner_dur<<endl;
+        for (size_t i = 0; i < volume.size(); i++)
+        {
+                /* code */
+            imshow("image",volume[i]);
+            waitKey(0);
+        }
         
    
     }
@@ -153,10 +175,10 @@ int main()
 
 }
 
-vector<vector<CircleInf>>extract_rows(vector<CircleInf> sortedList, float y_tolerance) {
+vector<vector<CircleInf>>extract_rows(vector<CircleInf> sortedList, float y_tolerance,  int& n_cols) {
     
     vector<vector<CircleInf>> rows;
-    int estimated_rows = max(1, (int)(sortedList.size()/64));
+    int estimated_rows = max(1, (int)(sortedList.size()/34));
     rows.reserve(estimated_rows);
     while (!sortedList.empty())
     {
@@ -169,7 +191,7 @@ vector<vector<CircleInf>>extract_rows(vector<CircleInf> sortedList, float y_tole
                 row_y = c.center.y;
         }
         vector<CircleInf>current_row;
-        current_row.reserve(64);
+        current_row.reserve(34);
         vector<CircleInf>remaining_row;
         remaining_row.reserve(sortedList.size());
         for (const auto& c : sortedList) {
@@ -182,58 +204,109 @@ vector<vector<CircleInf>>extract_rows(vector<CircleInf> sortedList, float y_tole
             return a.center.x < b.center.x;
             });
         rows.push_back(current_row);
+        // cout<< current_row.size()<<endl;
         sortedList = move(remaining_row);
 
     }
-     
+    size_t max_cols = 0;
+    for (const auto& row : rows)
+    {
+        max_cols = max(max_cols, row.size());
+    }
+    for(auto& row : rows){
+        if(row.size() < max_cols){
+            row.resize(max_cols);
+        }
+    }
+    n_cols = static_cast<int>(max_cols);
+    // cout<<"rows size"<<rows.size()<<endl;
     return rows;
 }
 
-void tranform_image(const Mat& image_mla, const int patch_size, const vector<vector<CircleInf>>& rows, vector<Mat>& views, int &n_rows, int &n_cols){
-    auto inner_start = chrono::high_resolution_clock::now();
+void transform_image(const Mat& image_mla, const int patch_size, const vector<vector<CircleInf>>& rows, vector<Vec3f>& images, const int n_rows, const int n_cols){
+    auto start1 = chrono::high_resolution_clock::now();
     assert(patch_size > 0);
-    n_rows = static_cast<int>(rows.size());
-    n_cols = 0;
     float half = (patch_size - 1) / 2.0f;
-    for(const auto& row : rows){
-        n_cols = max(n_cols, (int)row.size());
-    }
-    views.resize(patch_size * patch_size);
-    assert(views.size() == patch_size * patch_size);
-    for (int i = 0; i < views.size(); i++)
-    {
-        views[i].create(n_rows, n_cols, CV_32FC3);
-    }
-    vector<Point2f> offset(patch_size * patch_size);
-    
-    for (int u = 0; u < n_rows; u++)
-    {
-        for (int v = 0; v < rows[u].size(); v++)
-        {
-            Point2f center = rows[u][v].center;
-            for (int s = 0; s < patch_size; s++)//patch_h
-            {
-                
-                for(int t = 0; t < patch_size; t++){//patch_w
-                    int view_idx = s * patch_size + t;
-                    float offset_x = t - half;
-                    float offset_y = s - half;
-                    Point2f sample_point = center + Point2f(offset_x, offset_y);
-                    Vec3f color = bilinear_rgb(image_mla, sample_point);
-                    Vec3f* row_ptr = views[view_idx].ptr<Vec3f>(u);
-                    row_ptr[v] = color;
-                }
-            }
-            
+    int patch_area = patch_size * patch_size;
+    // auto start = chrono::high_resolution_clock::now();
+    // // assert(views.size() == patch_size * patch_size);
+    // for (int i = 0; i < views.size(); i++)
+    // {
+        //     views[i] = Mat::zeros(n_rows, n_cols, CV_32FC3);
+        // }
+    images.reserve(patch_area * n_rows * n_cols);
+    // auto end = chrono::high_resolution_clock::now();
+    // vector<Vec3f> views_data(patch_size * patch_size * n_rows * n_cols);
+    vector<int> uv_list;
+    for(int u = 0; u < n_rows; u++){
+        for(int v = 0; v < n_cols; v++){
+            uv_list.emplace_back(u * n_cols + v);
         }
-        
     }
-    auto inner_end = chrono::high_resolution_clock::now();
-    auto inner_dur = duration_cast<chrono::nanoseconds>(inner_end - inner_start).count();
-    cout<<inner_dur<<endl;
+    auto end1 = chrono::high_resolution_clock::now();
+    auto start2 = chrono::high_resolution_clock::now();
    
+    #pragma omp parallel for 
+    for (int idx = 0; idx < uv_list.size() * patch_area; idx++){
+        int uv_idx = idx / (patch_area);
+        int s = (idx / patch_size) % patch_size;
+        int t = idx % patch_size;
+
+        int u = uv_list[uv_idx] / n_cols;
+        int v = uv_list[uv_idx] % n_cols;
+        // int view_idx = s * patch_size + t;
+        int idx_in_image = (s * patch_size + t) * n_rows * n_cols + uv_list[uv_idx];
+        const auto& row = rows[u][v];
+        bool valid = row.valid;
+        if(!valid){
+            images[idx_in_image] = Vec3f(0, 0, 0);  
+            continue;
+        }
+        Point2f center = row.center;        
+        float x = center.x + (t - half);
+        float y = center.y + (s - half);
+        Vec3f color = bilinear_rgb(image_mla, Point2f(x, y));
+        images[idx_in_image] = color;
+    }
+    // for (int i = 0; i < uv_list.size(); i++)
+    // {
+    //     int u = uv_list[i].first;
+    //     int v = uv_list[i].second;
+
+    //     Point2f center = rows[u][v].center;
+    //     bool valid = rows[u][v].valid;
+    //     int uv_offset = u * n_cols + v;
+    //     for (int s = 0; s < patch_size; s++)//patch_h
+    //     {           
+    //         for(int t = 0; t < patch_size; t++)//patch_w
+    //         {
+    //             int view_idx = s * patch_size + t;
+    //             if(!valid){
+    //                 images[view_idx * n_rows * n_cols + uv_offset] = Vec3f(0, 0, 0);  
+    //                 continue;
+    //             }
+                
+    //             Point2f sample_point = center + Point2f(t - half, s - half);
+    //             Vec3f color = bilinear_rgb(image_mla, sample_point);
+    //             images[view_idx * n_rows * n_cols + uv_offset] = color;
+                
+    //             // Vec3f* row_ptr = views[view_idx].ptr<Vec3f>(u);
+    //             // row_ptr[v] = color;
+    //         }
+    //     }
+
+    // }
+        
+        
+    auto end2 = chrono::high_resolution_clock::now();
+    // std::cout << "initialization took " << chrono::duration<double, milli>(end - start).count() << " ms" << endl;
+    // std::cout << "prepared took " << chrono::duration<double, milli>(end1 - start1).count() << " ms" << endl;
+    // std::cout << "whole loop took " << chrono::duration<double, milli>(end2 - start2).count() << " ms" << endl;
+    
 }
+//the running time of bilinear_rgb: ~0.0002ms
 Vec3b bilinear_rgb(const Mat& image_mla, const Point2f& pt){
+    
     int x = static_cast<int>(floor(pt.x));
     int y = static_cast<int>(floor(pt.y));
     float dx = pt.x - x;
@@ -249,59 +322,140 @@ Vec3b bilinear_rgb(const Mat& image_mla, const Point2f& pt){
     Vec3b I11(row1[x + 1]);
     
     
+    
     return (1 - dx) * (1 - dy) * I00 +
     dx * (1 - dy) * I01 +
     (1 - dx) * dy * I10 +
     dx * dy * I11;
-}
-vector<Mat> shift_and_sum(const vector<Mat> &images, const int& n_rows, const int& n_cols, const int& num_depth_plane,const int& patch_size, const vector<vector<vector<float>>>& disparity_x, const vector<vector<vector<float>>>& disparity_y){
-
     
+}
+vector<Mat> shift_and_sum(const vector<Vec3f> &images,  const int n_rows, const int n_cols, const int num_depth_plane,const int patch_size, const vector<vector<vector<float>>>& disparity_x, const vector<vector<vector<float>>>& disparity_y){
+    auto start1 = chrono::high_resolution_clock::now();
     vector<Mat> volume(num_depth_plane);
-    Mat shifted(images[0].size(), CV_32FC3);
-    cout << "image type: " << images[0].type() << endl;
-    for (int z_idx = 0; z_idx < num_depth_plane; z_idx++)
+    int patch_area = patch_size * patch_size;
+    vector<Mat> views(patch_area);
+    for (int idx = 0; idx < views.size() ; idx++)
+    {
+        views[idx] = Mat(n_rows, n_cols, CV_32FC3, (void*)(images.data() + idx * n_rows * n_cols));
+    }
+    vector<vector<Mat>> all_local_refocused(num_depth_plane, vector<Mat>(patch_area));
+    // cout << "image type: " << images[0].type() << endl;
+    // auto start2 = chrono::high_resolution_clock::now();
+    #pragma omp parallel for 
+    for (int index = 0; index < num_depth_plane * patch_area; index++)
     {   
-        /* code */
-        Mat refcoused(n_rows, n_cols, CV_32FC3, Scalar(0,0,0));
-        for (int h = 0; h < patch_size; h++)
-        {
-            /* code */
-            for (int w = 0; w < patch_size; w++)
-            {
-                /* code */
-                // Mat img_float;
-                // images[h][w].convertTo(img_float, CV_32FC3);
-                float dx = disparity_x[h][w][z_idx];
-                float dy = disparity_y[h][w][z_idx];
+        // /* code */
+        int idx = index / num_depth_plane;
+        int z_idx = index % num_depth_plane;
+        int h = idx / patch_size;
+        int w = idx % patch_size;
+        
+        float dx = disparity_x[h][w][z_idx];
+        float dy = disparity_y[h][w][z_idx];
+        Mat& dst = all_local_refocused[z_idx][idx];
+        dst.create(n_rows, n_cols, CV_32FC3);
+        shift_img(views[idx], dx, dy, dst);
+
+        // Mat shifted(views[idx].size(), CV_32FC3);
+        // shift_img(views[idx], dx, dy, shifted);
+        // all_local_refocused[z_idx][idx] = shifted;
+        
+        // #pragma omp parallel for collapse(2)
+        // for (int h = 0; h < patch_size; h++)
+        // {
+            //     /* code */
+            //     for (int w = 0; w < patch_size; w++)
+            //     {
+                //         /* code */
+                //         // Mat img_float;
+                //         // images[h][w].convertTo(img_float, CV_32FC3);
+                //         int idx = h * patch_size + w;
+                //         float dx = disparity_x[h][w][z_idx];
+                //         float dy = disparity_y[h][w][z_idx];
                 
-                shift_img(images[h * patch_size + w], dx, dy, shifted);
+                //         Mat shifted(images[idx].size(), CV_32FC3);
+                //         shift_img(images[idx], dx, dy, shifted);
+                //         local_refocused[idx] = shifted;
                 
-                refcoused += shifted;
                 
-            }
-            
+                //     }
+                
+                // }
+                
+    }   
+    for(int z_idx = 0; z_idx < num_depth_plane; z_idx++){
+        Mat refocused(n_rows, n_cols, CV_32FC3, Scalar(0,0,0));
+        for(int idx = 0; idx < patch_area; idx++){
+            refocused += all_local_refocused[z_idx][idx];
         }
-        refcoused /= static_cast<float>(patch_size * patch_size);
+        refocused /= static_cast<float>(patch_area);
         Mat refocused_unit8;
-        refcoused.convertTo(refocused_unit8, CV_8UC3, 1.0, 0.0);
+        refocused.convertTo(refocused_unit8, CV_8UC3, 1.0, 0.0);
         
         float scale = 10.0f;
         Mat large;
         cv::resize(refocused_unit8, large, Size(), scale, scale, INTER_LINEAR);
         volume[z_idx] = large;
     }
+    auto end1 = chrono::high_resolution_clock::now();
+    // auto end2 = chrono::high_resolution_clock::now();
+   
+    std::cout << "all took " << chrono::duration<double, milli>(end1 - start1).count() << " ms" << endl;
+    // std::cout << "whole loop took " << chrono::duration<double, milli>(end2 - start2).count() << " ms" << endl;  
+        
+    
    
     return volume;
 }
+//the running time of the shift_img is ~0.0017ms
 void shift_img(const Mat& img, float dx, float dy, Mat& shifted){
     
-  
+
     //Affine transformation matrix
     Mat M = (Mat_<double>(2,3)<<1, 0, dx, 0 , 1, dy);
     warpAffine(img, shifted, M, img.size(), INTER_LINEAR, BORDER_REFLECT);
-  
+    
 }
+// vector<Mat> shift_and_sum(const vector<Mat> &images, const int& n_rows, const int& n_cols, const int& num_depth_plane,const int& patch_size, const vector<vector<vector<float>>>& disparity_x, const vector<vector<vector<float>>>& disparity_y){
+
+    
+//     vector<Mat> volume(num_depth_plane);
+//     Mat shifted(images[0].size(), CV_32FC3);
+//     cout << "image type: " << images[0].type() << endl;
+//     for (int z_idx = 0; z_idx < num_depth_plane; z_idx++)
+//     {   
+//         /* code */
+//         Mat refcoused(n_rows, n_cols, CV_32FC3, Scalar(0,0,0));
+//         for (int h = 0; h < patch_size; h++)
+//         {
+//             /* code */
+//             for (int w = 0; w < patch_size; w++)
+//             {
+//                 /* code */
+//                 // Mat img_float;
+//                 // images[h][w].convertTo(img_float, CV_32FC3);
+//                 float dx = disparity_x[h][w][z_idx];
+//                 float dy = disparity_y[h][w][z_idx];
+                
+//                 shift_img(images[h * patch_size + w], dx, dy, shifted);
+                
+//                 refcoused += shifted;
+                
+//             }
+            
+//         }
+//         refcoused /= static_cast<float>(patch_size * patch_size);
+//         Mat refocused_unit8;
+//         refcoused.convertTo(refocused_unit8, CV_8UC3, 1.0, 0.0);
+        
+//         float scale = 10.0f;
+//         Mat large;
+//         cv::resize(refocused_unit8, large, Size(), scale, scale, INTER_LINEAR);
+//         volume[z_idx] = large;
+//     }
+   
+//     return volume;
+// }
 // vector<vector<Mat>>extract_microlens_patches(Mat image_mla, int patch_size, vector<vector<CircleInf>>rows){
     //     size_t n_rows = rows.size();
     //     int n_cols = 0;

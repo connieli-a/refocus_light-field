@@ -11,5 +11,9 @@ endif()
 
 project ("refocus_cmake")
 
+if(MSVC)
+  set(CMAKE_CXX_FLAGS_RELEASE "/O2 /Ob2 /DNDEBUG" CACHE STRING "" FORCE)
+endif()
+
 # 包含子项目。
 add_subdirectory ("refocus_cmake")
