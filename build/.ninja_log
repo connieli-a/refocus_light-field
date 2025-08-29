@@ -1,3 +1,10 @@
 # ninja log v6
-19	3311	7756558293145743	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus_cmake.cpp.obj	4ed8a9beb95b2ee1
-3314	3492	7756558326122452	refocus_cmake/refocus_cmake.exe	a34705b633c45f9c
+35	2039	7780770968123486	refocus_cmake/CMakeFiles/refocus_cmake.dir/main.cpp.obj	fe9bd5eeb8b900a3
+40	2074	7780770968190159	refocus_cmake/CMakeFiles/refocus_cmake.dir/refocus.cpp.obj	858e0b29f515dbdb
+10385	12075	7780771071629467	refocus_cmake/refocus_cmake.exe	1a959f152649a3e0
+44	8779	7780770968223224	refocus_cmake/CMakeFiles/refocus_cmake.dir/kernel.cu.obj	8d7c328cfa201b55
+8782	10384	7780771055614828	CMakeFiles/refocus_cmake.dir/cmake_device_link.obj	fa8e43be0b234acd
+57	2083	7780776593812989	refocus_cmake/CMakeFiles/refocus_cmake.dir/main.cpp.obj	fe9bd5eeb8b900a3
+62	8745	7780776593871592	refocus_cmake/CMakeFiles/refocus_cmake.dir/kernel.cu.obj	8d7c328cfa201b55
+8746	10385	7780776680686486	CMakeFiles/refocus_cmake.dir/cmake_device_link.obj	fa8e43be0b234acd
+10387	11409	7780776697108848	refocus_cmake/refocus_cmake.exe	1a959f152649a3e0

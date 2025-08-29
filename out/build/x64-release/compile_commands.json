@@ -1,0 +1,20 @@
+[
+{
+  "directory": "G:/program/cpp/projects/refocus_cmake/out/build/x64-release",
+  "command": "\"G:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DH5_BUILT_AS_DYNAMIC_LIB -external:IG:\\program_files\\vcpkg\\installed\\x64-windows\\include\\opencv4 -external:I\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\include\" -external:W0 /DWIN32 /D_WINDOWS /GR /EHsc /O2 /Ob2 /DNDEBUG -std:c++17 -MD /Forefocus_cmake\\CMakeFiles\\refocus_cmake.dir\\main.cpp.obj /Fdrefocus_cmake\\CMakeFiles\\refocus_cmake.dir\\ /FS -c G:\\program\\cpp\\projects\\refocus_cmake\\refocus_cmake\\main.cpp",
+  "file": "G:\\program\\cpp\\projects\\refocus_cmake\\refocus_cmake\\main.cpp",
+  "output": "refocus_cmake\\CMakeFiles\\refocus_cmake.dir\\main.cpp.obj"
+},
+{
+  "directory": "G:/program/cpp/projects/refocus_cmake/out/build/x64-release",
+  "command": "\"G:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DH5_BUILT_AS_DYNAMIC_LIB -external:IG:\\program_files\\vcpkg\\installed\\x64-windows\\include\\opencv4 -external:I\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\include\" -external:W0 /DWIN32 /D_WINDOWS /GR /EHsc /O2 /Ob2 /DNDEBUG -std:c++17 -MD /Forefocus_cmake\\CMakeFiles\\refocus_cmake.dir\\refocus.cpp.obj /Fdrefocus_cmake\\CMakeFiles\\refocus_cmake.dir\\ /FS -c G:\\program\\cpp\\projects\\refocus_cmake\\refocus_cmake\\refocus.cpp",
+  "file": "G:\\program\\cpp\\projects\\refocus_cmake\\refocus_cmake\\refocus.cpp",
+  "output": "refocus_cmake\\CMakeFiles\\refocus_cmake.dir\\refocus.cpp.obj"
+},
+{
+  "directory": "G:/program/cpp/projects/refocus_cmake/out/build/x64-release",
+  "command": "C:\\PROGRA~1\\NVIDIA~2\\CUDA\\v12.6\\bin\\nvcc.exe -forward-unknown-to-host-compiler -DH5_BUILT_AS_DYNAMIC_LIB -isystem G:\\program_files\\vcpkg\\installed\\x64-windows\\include\\opencv4 -isystem \"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\include\" -D_WINDOWS -Xcompiler=\" /GR /EHsc\" -diag-suppress=611 -Xcompiler=\"-O2 -Ob2\" -DNDEBUG -std=c++17 \"--generate-code=arch=compute_75,code=[compute_75,sm_75]\" -Xcompiler=-MD -x cu -rdc=true -c G:\\program\\cpp\\projects\\refocus_cmake\\refocus_cmake\\kernel.cu -o refocus_cmake\\CMakeFiles\\refocus_cmake.dir\\kernel.cu.obj -Xcompiler=-Fdrefocus_cmake\\CMakeFiles\\refocus_cmake.dir\\,-FS",
+  "file": "G:\\program\\cpp\\projects\\refocus_cmake\\refocus_cmake\\kernel.cu",
+  "output": "refocus_cmake\\CMakeFiles\\refocus_cmake.dir\\kernel.cu.obj"
+}
+]

@@ -1,0 +1,672 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "refocus_cmake/refocus_cmake.exe"
+		},
+		{
+			"path" : "refocus_cmake/refocus_cmake.pdb"
+		}
+	],
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"_add_executable",
+			"add_executable",
+			"target_link_libraries",
+			"set_target_properties",
+			"include",
+			"_find_package",
+			"find_package",
+			"add_compile_definitions",
+			"find_dependency",
+			"target_include_directories"
+		],
+		"files" : 
+		[
+			"G:/program_files/vcpkg/scripts/buildsystems/vcpkg.cmake",
+			"refocus_cmake/CMakeLists.txt",
+			"G:/program_files/vcpkg/installed/x64-windows/share/opencv4/OpenCVModules.cmake",
+			"G:/program_files/vcpkg/installed/x64-windows/share/opencv4/OpenCVConfig.cmake",
+			"G:/program_files/vcpkg/installed/x64-windows/share/opencv/vcpkg-cmake-wrapper.cmake",
+			"G:/program_files/vcpkg/installed/x64-windows/share/hdf5/vcpkg-cmake-wrapper.cmake",
+			"G:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeFindDependencyMacro.cmake"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 32,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 600,
+				"parent" : 1
+			},
+			{
+				"command" : 2,
+				"file" : 1,
+				"line" : 64,
+				"parent" : 0
+			},
+			{
+				"command" : 6,
+				"file" : 1,
+				"line" : 25,
+				"parent" : 0
+			},
+			{
+				"command" : 4,
+				"file" : 0,
+				"line" : 850,
+				"parent" : 4
+			},
+			{
+				"file" : 4,
+				"parent" : 5
+			},
+			{
+				"command" : 5,
+				"file" : 4,
+				"line" : 3,
+				"parent" : 6
+			},
+			{
+				"file" : 3,
+				"parent" : 7
+			},
+			{
+				"command" : 4,
+				"file" : 3,
+				"line" : 157,
+				"parent" : 8
+			},
+			{
+				"file" : 2,
+				"parent" : 9
+			},
+			{
+				"command" : 3,
+				"file" : 2,
+				"line" : 248,
+				"parent" : 10
+			},
+			{
+				"command" : 8,
+				"file" : 2,
+				"line" : 37,
+				"parent" : 10
+			},
+			{
+				"command" : 6,
+				"file" : 6,
+				"line" : 76,
+				"parent" : 12
+			},
+			{
+				"command" : 4,
+				"file" : 0,
+				"line" : 850,
+				"parent" : 13
+			},
+			{
+				"file" : 5,
+				"parent" : 14
+			},
+			{
+				"command" : 7,
+				"file" : 5,
+				"line" : 11,
+				"parent" : 15
+			},
+			{
+				"command" : 9,
+				"file" : 1,
+				"line" : 63,
+				"parent" : 0
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "/DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 16,
+					"define" : "H5_BUILT_AS_DYNAMIC_LIB"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 17,
+					"isSystem" : true,
+					"path" : "G:/program_files/vcpkg/installed/x64-windows/include/opencv4"
+				},
+				{
+					"backtrace" : 17,
+					"isSystem" : true,
+					"path" : "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/include"
+				}
+			],
+			"language" : "CXX",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					3
+				],
+				"standard" : "17"
+			},
+			"sourceIndexes" : 
+			[
+				0,
+				1
+			]
+		},
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "-D_WINDOWS -Xcompiler=\" /GR /EHsc\" -diag-suppress=611 -Xcompiler=\" -Zi -Ob0 -Od /RTC1\" -std=c++17 \"--generate-code=arch=compute_75,code=[compute_75,sm_75]\" -Xcompiler=-MDd"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 16,
+					"define" : "H5_BUILT_AS_DYNAMIC_LIB"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 17,
+					"isSystem" : true,
+					"path" : "G:/program_files/vcpkg/installed/x64-windows/include/opencv4"
+				},
+				{
+					"backtrace" : 17,
+					"isSystem" : true,
+					"path" : "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/include"
+				}
+			],
+			"language" : "CUDA",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					2
+				],
+				"standard" : "17"
+			},
+			"sourceIndexes" : 
+			[
+				2
+			]
+		}
+	],
+	"id" : "refocus_cmake::@9faaa0513fb990910a58",
+	"link" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "/DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -MDd",
+				"role" : "flags"
+			},
+			{
+				"fragment" : "/machine:x64 /debug /INCREMENTAL /subsystem:console",
+				"role" : "flags"
+			},
+			{
+				"fragment" : "-LIBPATH:C:\\PROGRA~1\\NVIDIA~2\\CUDA\\v12.6\\lib\\x64",
+				"role" : "libraryPath"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_stitching4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_aruco4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_bgsegm4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_bioinspired4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_ccalib4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudabgsegm4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudafeatures2d4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudaobjdetect4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudastereo4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_dnn_objdetect4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_dnn_superres4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_dpm4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_face4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_fuzzy4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_hdf4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_hfs4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_img_hash4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_intensity_transform4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_line_descriptor4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_mcc4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_rapid4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_reg4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_saliency4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_signal4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_stereo4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_structured_light4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_superres4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_surface_matching4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_tracking4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_videostab4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_wechat_qrcode4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_xfeatures2d4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_xobjdetect4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_xphoto4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_shape4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_highgui4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_datasets4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_plot4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_text4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_ml4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_phase_unwrapping4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudacodec4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_videoio4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudaoptflow4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudalegacy4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudawarping4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_optflow4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_ximgproc4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_video4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_imgcodecs4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_objdetect4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_calib3d4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_dnn4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_features2d4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_flann4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_photo4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudaimgproc4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudafilters4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_imgproc4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudaarithm4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_core4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "G:\\program_files\\vcpkg\\installed\\x64-windows\\debug\\lib\\opencv_cudev4d.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\cudart_static.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\nppial.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\nppitc.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\nppig.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\nppist.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\nppidei.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\cublas.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\cublasLt.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\cufft.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\nppicc.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\nppif.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\nppim.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 11,
+				"fragment" : "\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6\\lib\\x64\\nppc.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "cudadevrt.lib",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "cudart_static.lib",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib",
+				"role" : "libraries"
+			}
+		],
+		"language" : "CXX"
+	},
+	"name" : "refocus_cmake",
+	"nameOnDisk" : "refocus_cmake.exe",
+	"paths" : 
+	{
+		"build" : "refocus_cmake",
+		"source" : "refocus_cmake"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "refocus_cmake/main.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "refocus_cmake/refocus.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "refocus_cmake/kernel.cu",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "EXECUTABLE"
+}

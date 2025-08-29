@@ -26,32 +26,13 @@ rule CUSTOM_COMMAND
 
 
 #############################################
-# Rule for generating CXX dependencies.
+# Rule for compiling CUDA files.
 
-rule CXX_SCAN__refocus_cmake_Release
-  deps = msvc
-  command = "G:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\cl.exe" $DEFINES $INCLUDES $FLAGS $in -nologo -TP -showIncludes -scanDependencies $DYNDEP_INTERMEDIATE_FILE -Fo$OBJ_FILE
-  description = Scanning $in for CXX dependencies
-
-
-#############################################
-# Rule to generate ninja dyndep files for CXX.
-
-rule CXX_DYNDEP__refocus_cmake_Release
-  command = "G:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E cmake_ninja_dyndep --tdi=refocus_cmake\CMakeFiles\refocus_cmake.dir\CXXDependInfo.json --lang=CXX --modmapfmt=msvc --dd=$out @$out.rsp
-  description = Generating CXX dyndep file $out
-  rspfile = $out.rsp
-  rspfile_content = $in
-  restat = 1
-
-
-#############################################
-# Rule for compiling CXX files.
-
-rule CXX_COMPILER__refocus_cmake_scanned_Release
-  deps = msvc
-  command = ${LAUNCHER}${CODE_CHECK}"G:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\cl.exe"  /nologo /TP $DEFINES $INCLUDES $FLAGS /showIncludes @$DYNDEP_MODULE_MAP_FILE /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
-  description = Building CXX object $out
+rule CUDA_COMPILER__refocus_cmake_unscanned_Release
+  depfile = $DEP_FILE
+  deps = gcc
+  command = ${LAUNCHER}${CODE_CHECK}C:\PROGRA~1\NVIDIA~2\CUDA\v12.6\bin\nvcc.exe -forward-unknown-to-host-compiler $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -x cu -rdc=true -c $in -o $out -Xcompiler=-Fd$TARGET_COMPILE_PDB,-FS
+  description = Building CUDA object $out
 
 
 #############################################
@@ -66,9 +47,22 @@ rule CXX_COMPILER__refocus_cmake_unscanned_Release
 #############################################
 # Rule for linking CXX executable.
 
-rule CXX_EXECUTABLE_LINKER__refocus_cmake_Release
-  command = C:\WINDOWS\system32\cmd.exe /C "$PRE_LINK && "G:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E vs_link_exe --msvc-ver=1944 --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\mt.exe --manifests $MANIFESTS -- "G:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\link.exe" /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /version:0.0 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
+rule CXX_EXECUTABLE_DEVICE_LINKER__refocus_cmake_Release
+  command = C:\PROGRA~1\NVIDIA~2\CUDA\v12.6\bin\nvcc.exe -forward-unknown-to-host-compiler $LANGUAGE_COMPILE_FLAGS $LINK_FLAGS -Wno-deprecated-gpu-targets -shared -dlink --options-file $RSP_FILE -o $TARGET_FILE -Xcompiler=-Fd$TARGET_COMPILE_PDB,-FS
   description = Linking CXX executable $TARGET_FILE
+  rspfile = $RSP_FILE
+  rspfile_content = $in_newline $LINK_LIBRARIES
+  restat = $RESTAT
+
+
+#############################################
+# Rule for linking CXX executable.
+
+rule CXX_EXECUTABLE_LINKER__refocus_cmake_Release
+  command = C:\WINDOWS\system32\cmd.exe /C "$PRE_LINK && "G:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E vs_link_exe --msvc-ver=1944 --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\mt.exe --manifests $MANIFESTS -- "G:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\link.exe" /nologo @$RSP_FILE  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /version:0.0 $LINK_FLAGS && $POST_BUILD"
+  description = Linking CXX executable $TARGET_FILE
+  rspfile = $RSP_FILE
+  rspfile_content = $in_newline $LINK_PATH $LINK_LIBRARIES
   restat = $RESTAT
 
 

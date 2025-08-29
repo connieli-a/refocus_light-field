@@ -3,21 +3,29 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**",
-                "${vcpkgRoot}/x64-windows/include"
+                "${workspaceFolder}/refocus_cmake/include/**",
+                "${vcpkgRoot}/x64-windows/include",
+                "${vcpkgRoot}/x64-windows/include/opencv4",
+                "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/include",
+                "G:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/include"
             ],
+            "compilerPath": "G://Program Files//Microsoft Visual Studio//2022//Community//VC//Tools//MSVC//14.44.35207//bin//Hostx64//x64//cl.exe",
+            "windowsSdkVersion": "10.0.26100.0",
+            "configurationProvider": "ms-vscode.cmake-tools",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64",
             "defines": [
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"
-            ],
-            "windowsSdkVersion": "10.0.26100.0",
-            "compilerPath": "cl.exe",
-            "cStandard": "c17",
-            "cppStandard": "c++17",
-            "intelliSenseMode": "windows-msvc-x64",
-            "configurationProvider": "ms-vscode.cmake-tools"
+            ]
+            
+            
         }
     ],
+  
+
     "version": 4
+    
 }

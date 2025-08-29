@@ -1,4 +1,5 @@
-﻿#include "refocus_cmake.h"
+﻿#include "refocus_cmake copy.h"
+using namespace cv;
 int main1(){
     int max_threads = omp_get_max_threads();
     cout<<max_threads<<endl;
@@ -16,10 +17,10 @@ int main()
 {
     omp_set_num_threads(omp_get_max_threads());
     // cout << "filepath: " << std::filesystem::current_path().string() << std::endl;
-    Mat image = imread("data/Image__2025-05-23__16-37-19.bmp");
-    Mat image_mla = imread("data/original_20250617_180038.bmp");
-    Mat image_rgb;
-    Mat image_gray;
+    cv::Mat image = cv::imread("data/Image__2025-05-23__16-37-19.bmp");
+    cv::Mat image_mla = cv::imread("data/original_20250617_180038.bmp");
+    cv::Mat image_rgb;
+    cv::Mat image_gray;
     int Rmin = 9, Rmax = 30;
 
     if (image.empty()) {
@@ -33,13 +34,13 @@ int main()
         return -1;
     }
     
-    cvtColor(image, image_gray, COLOR_BGR2GRAY);
-    cvtColor(image_mla, image_rgb, COLOR_BGR2RGB);
+    cv::cvtColor(image, image_gray, COLOR_BGR2GRAY);
+    cv::cvtColor(image_mla, image_rgb, COLOR_BGR2RGB);
     
     //hough transform
-    vector<Vec3f> circles;
+    vector<cv::Vec3f> circles;
     HoughCircles(image_gray, circles, HOUGH_GRADIENT, 1.2, 28, 50, 30, Rmin, Rmax);
-    vector<CircleInf> circleList;
+    vector<CircleInf_cpp> circleList;
     
     
     if (!circles.empty()) {
@@ -59,7 +60,7 @@ int main()
         sort(idx.begin(), idx.end(), [&](int a, int b) {
             return circleList[a].center.y < circleList[b].center.y;
         });
-        vector<CircleInf> sortedList;
+        vector<CircleInf_cpp> sortedList;
         for (int i = 0; i < idx.size(); i++)
         {
             /* code */
@@ -70,7 +71,7 @@ int main()
         int rangex1 = 900, rangex2 = 3000;
         int rangey1 = 125, rangey2 = 2000;
         
-        vector<CircleInf> rangeList;
+        vector<CircleInf_cpp> rangeList;
         for (int i = 0; i < sortedList.size(); i++)
         {
             /* code */
@@ -90,7 +91,7 @@ int main()
         float tolerance = 15;
         int n_cols = 0;
         //rows: collect the circle centers and sort by the y axis and x axis
-        vector<vector<CircleInf>> rows = extract_rows(sortedList, tolerance,  n_cols);
+        vector<vector<CircleInf_cpp>> rows = extract_rows(sortedList, tolerance,  n_cols);
         int n_rows = static_cast<int>(rows.size());
         
         int num_depth_plane = 1;
@@ -175,9 +176,9 @@ int main()
 
 }
 
-vector<vector<CircleInf>>extract_rows(vector<CircleInf> sortedList, float y_tolerance,  int& n_cols) {
+vector<vector<CircleInf_cpp>>extract_rows(vector<CircleInf_cpp> sortedList, float y_tolerance,  int& n_cols) {
     
-    vector<vector<CircleInf>> rows;
+    vector<vector<CircleInf_cpp>> rows;
     int estimated_rows = max(1, (int)(sortedList.size()/34));
     rows.reserve(estimated_rows);
     while (!sortedList.empty())
@@ -190,9 +191,9 @@ vector<vector<CircleInf>>extract_rows(vector<CircleInf> sortedList, float y_tole
             if (c.center.y < row_y)
                 row_y = c.center.y;
         }
-        vector<CircleInf>current_row;
+        vector<CircleInf_cpp>current_row;
         current_row.reserve(34);
-        vector<CircleInf>remaining_row;
+        vector<CircleInf_cpp>remaining_row;
         remaining_row.reserve(sortedList.size());
         for (const auto& c : sortedList) {
             if (abs(row_y - c.center.y) < y_tolerance)
@@ -200,7 +201,7 @@ vector<vector<CircleInf>>extract_rows(vector<CircleInf> sortedList, float y_tole
             else remaining_row.push_back(c);
         }
         //sort by x-axis
-        sort(current_row.begin(), current_row.end(), [](const CircleInf& a, const CircleInf& b) {
+        sort(current_row.begin(), current_row.end(), [](const CircleInf_cpp& a, const CircleInf_cpp& b) {
             return a.center.x < b.center.x;
             });
         rows.push_back(current_row);
@@ -223,7 +224,7 @@ vector<vector<CircleInf>>extract_rows(vector<CircleInf> sortedList, float y_tole
     return rows;
 }
 
-void transform_image(const Mat& image_mla, const int patch_size, const vector<vector<CircleInf>>& rows, vector<Vec3f>& images, const int n_rows, const int n_cols){
+void transform_image(const Mat& image_mla, const int patch_size, const vector<vector<CircleInf_cpp>>& rows, vector<Vec3f>& images, const int n_rows, const int n_cols){
     auto start1 = chrono::high_resolution_clock::now();
     assert(patch_size > 0);
     float half = (patch_size - 1) / 2.0f;
@@ -587,4 +588,3 @@ void shift_img(const Mat& img, float dx, float dy, Mat& shifted){
 //         }
 //     }
 // }
-

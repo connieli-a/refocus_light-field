@@ -1,4 +1,4 @@
-﻿{
+{
     "version": 3,
     "configurePresets": [
         {
@@ -10,7 +10,9 @@
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "cl.exe",
               "CMAKE_CXX_COMPILER": "cl.exe",
-              "CMAKE_TOOLCHAIN_FILE": "G:/program_files/vcpkg/scripts/buildsystems/vcpkg.cmake" 
+              "CMAKE_TOOLCHAIN_FILE": "G:/program_files/vcpkg/scripts/buildsystems/vcpkg.cmake" ,
+              "CMAKE_CUDA_COMPILER": "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/bin/nvcc.exe",
+              "CMAKE_CUDA_ARCHITECTURES": "75"
             },
             "condition": {
                 "type": "equals",
@@ -33,10 +35,11 @@
         {
             "name": "x64-release",
             "displayName": "x64 Release",
-            "inherits": "x64-debug",
+            "inherits": "windows-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
-            }
+            },
+            "binaryDir": "${sourceDir}/out/build/x64-release"
         },
         {
             "name": "x86-debug",
@@ -58,5 +61,19 @@
                 "CMAKE_BUILD_TYPE": "Release"
             }
         }
+    ],
+    "buildPresets": [
+      {
+        "name": "x64-debug",
+        "configurePreset": "x64-debug",
+         "displayName": "Build x64 Debug"
+      },
+         {
+        "name": "x64-release",
+        "configurePreset": "x64-release",
+        "displayName": "Build x64 Release"
+      }
     ]
 }
+
+
