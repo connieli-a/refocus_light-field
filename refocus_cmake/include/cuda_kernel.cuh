@@ -21,7 +21,7 @@ struct Vec3f {
 // 继承自父类，负责 CUDA 部分
 class GPUProcessor : public ImageProcessor {
 public:
-    GPUProcessor(const vector<cv::Vec3f>& circles, const float y_tolerance, const int patch_size, const int num_depth_plane, const std::vector<float> disparity_x_flat, const std::vector<float> disparity_y_flat);
+    GPUProcessor(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size, const int num_depth_plane, const std::vector<float> disparity_x_flat, const std::vector<float> disparity_y_flat);
     virtual ~GPUProcessor();
 
     std::vector<cv::Vec3f> imageprocess_cuda(
@@ -51,7 +51,7 @@ public:
 private: 
     void cuda_preprocess( const cv::Mat& image_mla);
     void prepare_data();
-    void extract_rows(const vector<cv::Vec3f>& circles, const float y_tolerance);
+    void extract_rows(const vector<CircleInf>& circleList, const float y_tolerance);
     void preprocess(const vector<cv::Vec3f>& circles, vector<CircleInf>& sortedList);
     //--------related CUDA
     
@@ -79,8 +79,7 @@ private:
     int total_circles ;
     int total_uv   = n_cols * n_rows;
     int total_pix  = patch_area * total_uv;
-   std::vector<float> disparity_x_flat;
-    std::vector<float> disparity_y_flat;
+ 
     //---optical parament
 
     int patch_size = 0;

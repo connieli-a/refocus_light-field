@@ -5,8 +5,8 @@
 #include <iostream>
 
 
-GPUProcessor::GPUProcessor(const vector<cv::Vec3f>& circles, const float y_tolerance, const int patch_size_cpp, const int num_depth_plane_cpp, const std::vector<float> disparity_x_flat, const std::vector<float> disparity_y_flat):  patch_size(patch_size_cpp), num_depth_plane(num_depth_plane_cpp),disparity_x_flat(disparity_x_flat), disparity_y_flat(disparity_y_flat){
-    extract_rows(circles, y_tolerance);
+GPUProcessor::GPUProcessor(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size_cpp, const int num_depth_plane_cpp, const std::vector<float> disparity_x_flat, const std::vector<float> disparity_y_flat):  patch_size(patch_size_cpp), num_depth_plane(num_depth_plane_cpp){
+    extract_rows(circleList, y_tolerance);
     prepare_data();
     //set the GPU information 
     // 使用GPUの設定
@@ -312,10 +312,14 @@ void GPUProcessor::prepare_data(){
     total_circles = static_cast<int>(rows_flat.size());
     // cout<<"rows_flat"<<rows_flat.size()<<endl;
 }
-void GPUProcessor::extract_rows(const vector<cv::Vec3f>& circles, const float y_tolerance){
+void GPUProcessor::extract_rows(const vector<CircleInf>& circleList, const float y_tolerance){
     vector<CircleInf> sortedList;
-    preprocess(circles, sortedList);
-    int estimated_rows = max(1, (int)(sortedList.size()/34));
+    // preprocess(circles, sortedList);
+    //sort by the y-axis
+    sortedList = circleList;
+    sort(sortedList.begin(), sortedList.end(),
+    [](const CircleInf& a, const CircleInf& b) { return a.y < b.y; });
+    int estimated_rows = max(1, (int)(sortedList.size()/30));
     rows.clear();
     rows.reserve(estimated_rows);
     while (!sortedList.empty())
@@ -329,7 +333,7 @@ void GPUProcessor::extract_rows(const vector<cv::Vec3f>& circles, const float y_
                 row_y = c.y;
         }
         vector<CircleInf>current_row;
-        current_row.reserve(34);
+        // current_row.reserve(34);
         vector<CircleInf>remaining_row;
         remaining_row.reserve(sortedList.size());
         for (const auto& c : sortedList) {
@@ -358,9 +362,30 @@ void GPUProcessor::extract_rows(const vector<cv::Vec3f>& circles, const float y_
     }
     n_cols = static_cast<int>(max_cols);
     n_rows =  static_cast<int>(rows.size());
-    // cout<<"rows size"<<rows.size()<<endl;
+    cout<<"rows size"<<rows.size()<<endl;
+    cout<<"cols size"<<n_cols<<endl;
     
 }
+void GPUProcessor::cuda_preprocess(const cv::Mat& image_mla){
+    cv::cuda::GpuMat d_img;
+    d_img.upload(image_mla);
+    uchar3* d_img_ptr = d_img.ptr<uchar3>();
+    
+    image_rows = d_img.rows;
+    image_cols = d_img.cols;
+    size_t step = d_img.step; 
+    
+    
+    dim3 block_copy(16, 16);
+    dim3 grid_copy((image_cols + 15)/16, (image_rows + 15)/16);
+    // 分配输出 device 内存（用 float*，回传时直接拷回到 Vec3f 数组）
+    cudaMalloc(&d_imagefloat, sizeof(Vec3f) * image_rows * image_cols);
+    copy_kernel<<<grid_copy, block_copy>>>(d_img_ptr, image_rows, image_cols, step, d_imagefloat);
+    cudaError_t err = cudaGetLastError();
+    if(err != cudaSuccess) printf("Kernel error: %s\n", cudaGetErrorString(err));
+    // cudaDeviceSynchronize();
+}
+
 void GPUProcessor::preprocess(const vector<cv::Vec3f>& circles, vector<CircleInf>& sortedList){
     vector<CircleInf> circleList;
     //orgnaize the array
@@ -373,6 +398,7 @@ void GPUProcessor::preprocess(const vector<cv::Vec3f>& circles, vector<CircleInf
         
     }
     //sort by the y-axis
+  
     vector<int> idx(circleList.size());
     for (int i = 0; i < idx.size(); i++) idx[i] = i;
     sort(idx.begin(), idx.end(), [&](int a, int b) {
@@ -402,23 +428,4 @@ void GPUProcessor::preprocess(const vector<cv::Vec3f>& circles, vector<CircleInf
     }
     sortedList = move(rangeList);
 
-}
-void GPUProcessor::cuda_preprocess(const cv::Mat& image_mla){
-    cv::cuda::GpuMat d_img;
-    d_img.upload(image_mla);
-    uchar3* d_img_ptr = d_img.ptr<uchar3>();
-   
-    image_rows = d_img.rows;
-    image_cols = d_img.cols;
-    size_t step = d_img.step; 
-   
-
-    dim3 block_copy(16, 16);
-    dim3 grid_copy((image_cols + 15)/16, (image_rows + 15)/16);
-    // 分配输出 device 内存（用 float*，回传时直接拷回到 Vec3f 数组）
-    cudaMalloc(&d_imagefloat, sizeof(Vec3f) * image_rows * image_cols);
-    copy_kernel<<<grid_copy, block_copy>>>(d_img_ptr, image_rows, image_cols, step, d_imagefloat);
-    cudaError_t err = cudaGetLastError();
-    if(err != cudaSuccess) printf("Kernel error: %s\n", cudaGetErrorString(err));
-    cudaDeviceSynchronize();
 }

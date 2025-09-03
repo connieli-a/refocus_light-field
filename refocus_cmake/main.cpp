@@ -11,6 +11,9 @@ int main(){
     cv::Mat image_rgb;
     cv::Mat image_gray;
     int Rmin = 9, Rmax = 30;
+     //set the range
+    int rangex1 = 960, rangex2 = 2880;
+    int rangey1 = 540, rangey2 = 1620;
     
 
     if (image.empty()) {
@@ -26,13 +29,14 @@ int main(){
     
     cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
     cvtColor(image_mla, image_rgb, cv::COLOR_BGR2RGB);
-    
+    cv::Rect roi(rangex1, rangey1, (rangex2 - rangex1), (rangey2 - rangey1));
+    cv::Mat image_gray_roi = image_gray(roi);
+    cv::Mat image_mla_roi = image_mla(roi);
     //hough transform
     vector<cv::Vec3f> circles;
-    HoughCircles(image_gray, circles, cv::HOUGH_GRADIENT, 1.2, 28, 50, 30, Rmin, Rmax);
-   
+    HoughCircles(image_gray_roi, circles, cv::HOUGH_GRADIENT, 1.2, 28, 50, 30, Rmin, Rmax);
     if(!circles.empty()){
-
+        
         int patch_size = 64;
         float tolerance = 15;
         int num_depth_plane = 1;
@@ -45,13 +49,25 @@ int main(){
         // vector<vector<vector<float>>> disparity_y(patch_size, vector<vector<float>>(patch_size, vector<float>(num_depth_plane, 0.0f)));
         generate_disparity_table(num_depth_plane, start, end, patch_size, disparity_x_flat, disparity_y_flat);
         
+        //orgnaize the array
+        vector<CircleInf> circleList;
+        for (int i = 0; i < circles.size(); i++)
+        {
+            float x = std::round(circles[i][0] * 100) / 100.0f;
+            float y = std::round(circles[i][1] * 100) / 100.0f;
+            float radius = std::round(circles[i][2] * 100) / 100.0f;
+            if(x - radius < 0 || y - radius < 0 || x + radius >= image_gray_roi.cols || y + radius >= image_gray_roi.rows)
+                continue;
+            circleList.push_back({ x, y, radius });
+        }
+       
         //create an instance
         //default value-->device:0, cuda graph: true
-        std:: shared_ptr<ImageProcessor> refocus_pointer = ImageProcessor::create(circles, tolerance, patch_size, num_depth_plane, disparity_x_flat, disparity_y_flat);
+        std:: shared_ptr<ImageProcessor> refocus_pointer = ImageProcessor::create(circleList, tolerance, patch_size, num_depth_plane, disparity_x_flat, disparity_y_flat);
         auto start1 = chrono::high_resolution_clock::now();
 
         
-        vector<cv::Vec3f> volume = refocus_pointer->imageprocess_cuda(image_mla);
+        vector<cv::Vec3f> volume = refocus_pointer->imageprocess_cuda(image_mla_roi);
         auto end1 = chrono::high_resolution_clock::now();
         int col = refocus_pointer->get_col();
         int row = refocus_pointer->get_row();

@@ -33,7 +33,7 @@ class ImageProcessor {
     public:
     virtual ~ImageProcessor() = default;
     
-    static std::shared_ptr<ImageProcessor> create(const vector<cv::Vec3f> circles, const float y_tolerance, const int patch_size_cpp, const int num_depth_plane, const std::vector<float> disparity_x_flat, const std::vector<float> disparity_y_flat, const int32_t device = 0, const bool useGraphe = true);
+    static std::shared_ptr<ImageProcessor> create(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size_cpp, const int num_depth_plane, const std::vector<float> disparity_x_flat, const std::vector<float> disparity_y_flat, const int32_t device = 0, const bool useGraphe = true);
 
     
     // pure virtual functions, only defining interfaces
