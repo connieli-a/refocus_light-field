@@ -11,10 +11,13 @@
 #include <chrono>
 #include <cmath>
 #include <omp.h>
+#include <pylon/PylonIncludes.h>
+#include <pylon/BaslerUniversalInstantCamera.h> 
 // #include <opencv2/cudaarithm.hpp>
 // TODO: 在此处引用程序需要的其他标头。
 using namespace std;
-
+using namespace Pylon;
+using namespace GenApi; // NodeMap / CFloatPtr / CEnumerationPtr
 
 
 struct CircleInf
@@ -28,18 +31,33 @@ struct CircleInf
     CircleInf(float _x, float _y, float r): x(_x), y(_y), radius(r), valid(1) {}
     
 };
-
+// struct LorentzResidual{
+//     LorentzResidual(float x, float y):x_(x),y_(y){}
+//     template<typename T>
+//     bool operator()(const T* const params, T* residual)const{
+//         T alpha = params[0];
+//         T beta = params[1];
+//         T z0 = params[2];
+//         T model = (beta + (x_ - z0) * (x_ - z0)) / alpha;
+//         residual[0] = model - y_;
+//         return true;
+//     }
+//     private:
+//     const double x_;
+//     const double y_;
+// };
 class ImageProcessor {
     public:
     virtual ~ImageProcessor() = default;
     
-    static std::shared_ptr<ImageProcessor> create(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size_cpp, const int num_depth_plane, const std::vector<float> disparity_x_flat, const std::vector<float> disparity_y_flat, const int32_t device = 0, const bool useGraphe = true);
+    static std::shared_ptr<ImageProcessor> create(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size_cpp, const int image_rows, const int image_cols, const int32_t device = 0, const bool useGraphe = true);
 
     
     // pure virtual functions, only defining interfaces
-    virtual std::vector<cv::Vec3f> imageprocess_cuda(
-    const cv::Mat& image_mla) = 0;                     // CV_8UC3
-
+    virtual float imageprocess_cuda(
+    const cv::Mat& image_mla,          // CV_8UC3
+    const vector<float>& depth_range) = 0;                     
+    virtual vector<cv::Vec3f> currentimage() = 0;
     
     virtual int get_col() const = 0;
     virtual int get_row() const = 0;
@@ -47,12 +65,12 @@ class ImageProcessor {
     protected:
     int n_cols;
     int n_rows;
-   
+    
 };
 
 
 
-void generate_disparity_table(const int num_depth_plane, const int start, const int end, const int patch_size, vector<float>& disparity_x_flat, vector<float>& disparity_y_flat);
+// void generate_disparity_table(const int num_depth_plane, const int start, const int end, const int patch_size, vector<float>& disparity_x_flat, vector<float>& disparity_y_flat);
 
 
 

@@ -61,7 +61,7 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -diag-suppress=611")
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -I${OpenCV_INCLUDE_DIRS}")
 # TODO: 如有需要，请添加测试并安装目标。
 target_include_directories(refocus_cmake PRIVATE ${OpenCV_INCLUDE_DIRS} ${CUDAToolkit_INCLUDE_DIRS})
-target_link_libraries(refocus_cmake PRIVATE ${OpenCV_LIBS})
+target_link_libraries(refocus_cmake PRIVATE pylon::pylon ${OpenCV_LIBS})
 
 
 

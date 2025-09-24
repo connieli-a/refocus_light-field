@@ -7,7 +7,7 @@
 //  * @param useGraph CUDA Graphを使用するかどうか (デフォルトはtrue)
 //  * @return ImageProcessorのインスタンス
 //  default mode(use gpu)->useGraph: true
-std::shared_ptr<ImageProcessor> ImageProcessor::create(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size_cpp, const int num_depth_plane, const std::vector<float> disparity_x_flat, const std::vector<float> disparity_y_flat, const int32_t device, const bool useGraph){
+std::shared_ptr<ImageProcessor> ImageProcessor::create(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size_cpp,  const int image_rows, const int image_cols, const int32_t device, const bool useGraph){
      //only 1 gpu device
     // int device_count = 0;
 //     cudaGetDeviceCount(&device_count);
@@ -24,7 +24,7 @@ std::shared_ptr<ImageProcessor> ImageProcessor::create(const vector<CircleInf>& 
     // cudaGetDevice(&current_device);
     // std::cout<<"using gpu"<<current_device<<std::endl;
     if(useGraph){
-        return std::make_shared<GPUProcessor>(circleList, y_tolerance, patch_size_cpp, num_depth_plane, disparity_x_flat, disparity_y_flat);
+        return std::make_shared<GPUProcessor>(circleList, y_tolerance, patch_size_cpp,  image_rows, image_cols);
     }
    return nullptr;
 }

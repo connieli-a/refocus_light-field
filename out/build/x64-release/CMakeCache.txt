@@ -229,8 +229,13 @@ CMAKE_TOOLCHAIN_FILE:FILEPATH=G:/program_files/vcpkg/scripts/buildsystems/vcpkg.
 // Studio IDE projects all commands are done without /nologo.
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
+CUDAToolkit_BIN_DIR:PATH=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/bin
+
 //Path to a file.
 CUDAToolkit_CUPTI_INCLUDE_DIR:PATH=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/include/../extras/CUPTI/include
+
+//Path to a program.
+CUDAToolkit_NVCC_EXECUTABLE:FILEPATH=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/bin/nvcc.exe
 
 //Path to a library.
 CUDA_CUDART:FILEPATH=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/lib/x64/cudart.lib
@@ -593,6 +598,15 @@ _vcpkg_sharpyuv_LIBRARY_RELEASE:FILEPATH=G:/program_files/vcpkg/installed/x64-wi
 //The directory containing a CMake configuration file for absl.
 absl_DIR:PATH=G:/program_files/vcpkg/installed/x64-windows/share/absl
 
+//Value Computed by CMake
+camera_BINARY_DIR:STATIC=G:/program/cpp/projects/refocus_cmake/out/build/x64-release/camera
+
+//Value Computed by CMake
+camera_IS_TOP_LEVEL:STATIC=OFF
+
+//Value Computed by CMake
+camera_SOURCE_DIR:STATIC=G:/program/cpp/projects/refocus_cmake/camera
+
 //The directory containing a CMake configuration file for libaec.
 libaec_DIR:PATH=G:/program_files/vcpkg/installed/x64-windows/share/libaec
 
@@ -607,6 +621,9 @@ protobuf_MODULE_COMPATIBLE:BOOL=OFF
 
 //Enable for verbose output
 protobuf_VERBOSE:BOOL=OFF
+
+//The directory containing a CMake configuration file for pylon.
+pylon_DIR:PATH=G:/Program Files/Basler/pylon 5/Development/CMake/pylon
 
 //The directory containing a CMake configuration file for quirc.
 quirc_DIR:PATH=G:/program_files/vcpkg/installed/x64-windows/share/quirc
@@ -786,8 +803,12 @@ CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 CMAKE_TOOLCHAIN_FILE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CUDAToolkit_BIN_DIR
+CUDAToolkit_BIN_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CUDAToolkit_CUPTI_INCLUDE_DIR
 CUDAToolkit_CUPTI_INCLUDE_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CUDAToolkit_NVCC_EXECUTABLE
+CUDAToolkit_NVCC_EXECUTABLE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CUDA_CUDART
 CUDA_CUDART-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CUDA_OpenCL_LIBRARY
@@ -992,6 +1013,10 @@ Z_VCPKG_POWERSHELL_PATH:INTERNAL=C:/Windows/System32/WindowsPowerShell/v1.0/powe
 Z_VCPKG_ROOT_DIR:INTERNAL=G:/program_files/vcpkg
 //linker supports push/pop state
 _CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=FALSE
+//CUDAToolkit internal list of implicit link directories
+_cmake_CUDAToolkit_implicit_link_directories:INTERNAL=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/lib/x64
+//CUDAToolkit internal list of include directories
+_cmake_CUDAToolkit_include_directories:INTERNAL=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/include
 //ADVANCED property for variable: _vcpkg_libwebp_LIBRARY_DEBUG
 _vcpkg_libwebp_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: _vcpkg_libwebp_LIBRARY_RELEASE

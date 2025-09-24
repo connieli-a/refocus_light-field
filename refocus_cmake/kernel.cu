@@ -3,41 +3,52 @@
 #include <opencv2/opencv.hpp>
 #include <cuda_runtime.h>
 #include <iostream>
+#include <filesystem>
 
+namespace fs = std::filesystem;
 
-GPUProcessor::GPUProcessor(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size_cpp, const int num_depth_plane_cpp, const std::vector<float> disparity_x_flat, const std::vector<float> disparity_y_flat):  patch_size(patch_size_cpp), num_depth_plane(num_depth_plane_cpp){
+GPUProcessor::GPUProcessor(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size_cpp,  const int image_rows, const int image_cols):  patch_size(patch_size_cpp),   image_rows(image_rows), image_cols(image_cols){
     extract_rows(circleList, y_tolerance);
     prepare_data();
     //set the GPU information 
     // 使用GPUの設定
+    cudaStreamCreate(&m_stream);
 
     cudaMalloc(&d_rows_flat, sizeof(CircleInf) * total_circles);
     cudaMalloc(&d_rows_offsets, sizeof(int) * rows_offsets.size());
-    cudaMalloc(&d_disp_x, patch_area * num_depth_plane * sizeof(float));
-    cudaMalloc(&d_disp_y, patch_area * num_depth_plane * sizeof(float));
-    cudaMemcpy(d_rows_flat, rows_flat.data(),
-    sizeof(CircleInf) * total_circles, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_rows_offsets, rows_offsets.data(),
-    sizeof(int) * rows_offsets.size(), cudaMemcpyHostToDevice);
-    
-    cudaMemcpy(d_disp_x, disparity_x_flat.data(),
-    patch_area * num_depth_plane * sizeof(float),
-    cudaMemcpyHostToDevice);
-    cudaMemcpy(d_disp_y, disparity_y_flat.data(),
-    patch_area * num_depth_plane * sizeof(float),
-    cudaMemcpyHostToDevice);
-    
-    
+    cudaMalloc(&d_imagefloat, sizeof(Vec3f) * image_rows * image_cols);
+    cudaMalloc(&d_images, sizeof(Vec3f) * n_rows * n_cols * patch_area);
+    cudaMalloc(&d_volume, num_depth_plane * n_rows * n_cols * sizeof(Vec3f));
+    cudaMalloc(&d_depth, sizeof(float) * num_depth_plane);
+    cudaMalloc(&d_brenner_scores, sizeof(float) * num_depth_plane);
+    cudaMalloc(&d_volume_1, n_rows * n_cols * sizeof(Vec3f));
+    cudaMalloc(&d_depth_1, sizeof(float) );
+    cudaMalloc(&d_image_1, sizeof(Vec3f) * n_rows * n_cols);
+    // cudaMemcpy(d_rows_flat, rows_flat.data(),
+    // sizeof(CircleInf) * total_circles, cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_rows_offsets, rows_offsets.data(),
+    // sizeof(int) * rows_offsets.size(), cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(d_rows_flat, rows_flat.data(),
+                sizeof(CircleInf) * total_circles,
+                cudaMemcpyHostToDevice, m_stream);
+
+    cudaMemcpyAsync(d_rows_offsets, rows_offsets.data(),
+                sizeof(int) * rows_offsets.size(),
+                cudaMemcpyHostToDevice, m_stream);
+    d_img.create(cv::Size(image_cols, image_rows), CV_8UC3);
 }
 GPUProcessor::~GPUProcessor(){
-    cudaFree(d_images);
-    cudaFree(d_rows_offsets);
     cudaFree(d_rows_flat);
-    cudaFree(d_volume);
-    cudaFree(d_disp_x);
-    cudaFree(d_disp_y);
+    cudaFree(d_rows_offsets);
     cudaFree(d_imagefloat);
-    // cudaStreamSynchronize(m_stream);
+    cudaFree(d_images);
+    cudaFree(d_volume);
+    cudaFree(d_depth);     
+    cudaFree(d_brenner_scores);
+    cudaFree(d_volume_1);
+    cudaFree(d_depth_1);
+    cudaFree(d_image_1);
+    cudaStreamSynchronize(m_stream);
 }
 
 // __device__ __forceinline__ Vec3f get_pixel(const uchar3* img, int idx, int cols, size_t step){
@@ -89,6 +100,8 @@ __global__ void copy_kernel(const uchar3* __restrict__ src, int rows, int cols, 
     uchar3 p = row_ptr[x];
 
     int idx = y * cols + x;
+    // int idx = y * cols + x;
+    // uchar3 p = src[idx]; 
     dst[idx] = Vec3f(float(p.x)/255.f, float(p.y)/255.f, float(p.z)/255.f);
 }
 //双线性插值bilinear interpolation
@@ -171,69 +184,133 @@ __global__ void transform_kernel( Vec3f* d_img, int image_rows, int image_cols,
     Vec3f bgr = bilinear_lookup(d_img, image_rows, image_cols,  x, y);
     out[idx_out] = bgr;
 }
+__global__ void transform_kernel_centerview( Vec3f* d_img, int image_rows, int image_cols, 
+    const CircleInf* __restrict__ rows_flat, const int* __restrict__ rows_offsets,
+    int total_circles, int n_rows, int n_cols, int patch_size,
+    Vec3f* __restrict__ out){
+    if(!d_img ||!rows_flat||!rows_offsets ) return; 
+    
+    
+    int uv_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (uv_idx >= n_rows * n_cols) return;
+   
+    float half = (patch_size - 1) * 0.5f;        
+    // 还原 (uv, s, t)
+   
+    int s = half;
+    int t = half;
 
+    int u = uv_idx / n_cols;
+    int v = uv_idx % n_cols;
+    
+    
+    // 这一行的起止（可处理“每行列数不同”的情况）
+    int start = rows_offsets[u];
+   
+    CircleInf ci = rows_flat[start + v];
+    if (!ci.valid) {
+      out[u * n_cols + v] = Vec3f(0,0,0);
+        return;
+    }
+
+    // 计算取样位置（与 CPU 代码一致）
+    float x = ci.x + (t - half);
+    float y = ci.y + (s - half);
+
+    Vec3f bgr = bilinear_lookup(d_img, image_rows, image_cols,  x, y);
+    out[u * n_cols + v] = bgr;
+}
 
 
 __global__ void shift_and_sum_kernel(const Vec3f* d_images,  // [patch_area][n_rows][n_cols]
                           Vec3f* d_volume,        // [num_depth_plane][n_rows][n_cols]
-                          const float* d_disp_x,  // [patch_area][num_depth_plane]
-                          const float* d_disp_y,  // [patch_area][num_depth_plane]
                           int n_rows, int n_cols, int patch_size,
-                          int num_depth_plane)
+                          const float* d_depth, const int num_depth_plane, float pixel_size, int s,//the diameter of the lens
+                            int f )//the focal length
 {
+    int u = blockIdx.y * blockDim.y + threadIdx.y;//row
+    int v = blockIdx.x * blockDim.x + threadIdx.x;//col
+    int z = blockIdx.z;  // 当前深度平面
+
+    if (u >= n_rows || v >= n_cols || z >= num_depth_plane) return;
+    int mid_idx = (patch_size - 1) * 0.5f;
+    int patch_area = patch_size * patch_size;
+    Vec3f sum = {0, 0, 0};
+    float depth = d_depth[z];
+    float factor = s * (depth / ((float)f + depth)) / pixel_size;
+    float radius = mid_idx * 0.75f ;
+    int count = 0;
+    for (int idx = 0; idx < patch_area; idx++) {
+       
+        int h = idx / patch_size;
+        int w = idx % patch_size;
+        float r2 = (h - mid_idx) * (h - mid_idx) + (w - mid_idx) * (w - mid_idx);
+        if(r2 <= radius * radius){
+            // disparity compute
+            count++;
+            float dx = (w - mid_idx) * factor;
+            float dy = (h - mid_idx) * factor;
+
+            // 原始像素位置（一个一个views检查）
+            int img_base_idx = idx * n_rows * n_cols;
+
+            // 浮点位移，使用双线性插值
+            float uu = (float)u + dy;
+            float vv = (float)v + dx;
+            // uu = fminf(fmaxf(uu, 0.f), n_rows - 1.001f);
+            // vv = fminf(fmaxf(vv, 0.f), n_cols - 1.001f);
+            Vec3f val = bilinear_lookup(d_images + img_base_idx, n_rows, n_cols, vv, uu);
+
+            sum[0] += val[0];
+            sum[1] += val[1];
+            sum[2] += val[2];
+        }
+    }
+
+    // 平均
+    sum[0] /= count;
+    sum[1] /= count;
+    sum[2] /= count;
+
+    
+    // 输出到 refocused volume
+    int out_idx = z * n_rows * n_cols + u * n_cols + v;
+    d_volume[out_idx] = sum;
+
+}
+__global__ void brenner_kernel(const Vec3f* d_volume, float* d_brenner_scores, int m, int n_rows, int n_cols, const int num_depth_plane){
     int u = blockIdx.y * blockDim.y + threadIdx.y;
     int v = blockIdx.x * blockDim.x + threadIdx.x;
     int z = blockIdx.z;  // 当前深度平面
 
     if (u >= n_rows || v >= n_cols || z >= num_depth_plane) return;
-
-    int patch_area = patch_size * patch_size;
-    Vec3f sum = {0, 0, 0};
-
-    for (int idx = 0; idx < patch_area; idx++) {
-        // int h = idx / patch_size;
-        // int w = idx % patch_size;
-
-        // disparity lookup
-        int disp_idx = idx * num_depth_plane + z;
-        float dx = d_disp_x[disp_idx];
-        float dy = d_disp_y[disp_idx];
-
-        // 原始像素位置（patch 内偏移）
-        int img_base_idx = idx * n_rows * n_cols;
-
-        // 浮点位移，使用双线性插值
-        float uu = u + dy;
-        float vv = v + dx;
-        Vec3f val = bilinear_lookup(d_images + img_base_idx, n_rows, n_cols, vv, uu);
-
-        sum[0] += val[0];
-        sum[1] += val[1];
-        sum[2] += val[2];
+    float brenner_val = 0.0f;
+    int idx = z*n_rows*n_cols + u*n_cols + v;
+    Vec3f color = d_volume[idx];
+    float center = color.x * 0.299f + color.y * 0.587f + color.z * 0.114f;
+    if(u + m < n_rows){
+        Vec3f down_color = d_volume[z * n_rows * n_cols + (u + m) * n_cols + v];
+        float down = down_color.x * 0.299f + down_color.y * 0.587f + down_color.z * 0.114f;
+        brenner_val += (center - down) * (center - down) ;
     }
-
-    // 平均
-    sum[0] /= patch_area;
-    sum[1] /= patch_area;
-    sum[2] /= patch_area;
-
-    // 输出到 refocused volume
-    int out_idx = z * n_rows * n_cols + u * n_cols + v;
-    d_volume[out_idx] = sum;
+    if(v + m < n_cols){
+        Vec3f right_color = d_volume[z * n_rows * n_cols + u  * n_cols + (v + m)];
+        float right = right_color.x * 0.299f + right_color.y * 0.587f + right_color.z * 0.114f;
+        brenner_val += (center - right) * (center - right);
+    }
+    atomicAdd(&d_brenner_scores[z], brenner_val);
 }
 
 
-
-
-
-std::vector<cv::Vec3f> GPUProcessor::imageprocess_cuda(
-    const cv::Mat& image_mla                 // CV_8UC3      
+float GPUProcessor::imageprocess_cuda(
+    const cv::Mat& image_mla, const vector<float>& depth_range                // CV_8UC3      
 ){
       //------------------
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     //-------------------------
+    cudaEventRecord(start);
     CV_Assert(image_mla.type() == CV_8UC3);
     CV_Assert(patch_size > 0);
     
@@ -242,62 +319,198 @@ std::vector<cv::Vec3f> GPUProcessor::imageprocess_cuda(
     int total_threads = n_rows * n_cols * patch_area;
     int transform_blocks = (total_threads + threads - 1) / threads;
     
-    // cudaEventRecord(start);
+   
     cuda_preprocess(image_mla);
    
-    
-    //     //------------
-    // cudaEventRecord(stop);
-    // cudaEventSynchronize(stop);
-
-    // float ms = 0;
-    // cudaEventElapsedTime(&ms, start, stop);
-    // printf("the rest of part耗时 : %f ms\n", ms);
-
-    // cudaEventDestroy(start);
-    // cudaEventDestroy(stop);
-    // //------------------
-
-    
     // // 拷回 CPU
     // std::vector<cv::Vec3f> h_images(image_rows * image_cols);
     // cudaMemcpy(h_images.data(), d_images, h_images.size() * sizeof(Vec3f), cudaMemcpyDeviceToHost);
+    // cudaEventRecord(start);
     
-    cudaMalloc(&d_images, sizeof(Vec3f) * n_rows * n_cols * patch_area);
-    cudaMalloc(&d_volume, num_depth_plane * n_rows * n_cols * sizeof(Vec3f));
- 
+
     // 在同一 stream 里执行 kernel
-    transform_kernel<<<transform_blocks, threads>>>(
+    transform_kernel<<<transform_blocks, threads, 0, m_stream>>>(
         d_imagefloat, image_rows, image_cols, 
         d_rows_flat, d_rows_offsets,
-         total_circles, n_rows, n_cols, patch_size,
-         d_images
+        total_circles, n_rows, n_cols, patch_size,
+        d_images
     );
-    cudaError_t err = cudaGetLastError();
-    if(err != cudaSuccess) printf("Kernel error: %s\n", cudaGetErrorString(err));
-    
+    cudaError_t err_transform = cudaGetLastError();
+    if(err_transform != cudaSuccess) printf("transform_Kernel error: %s\n", cudaGetErrorString(err_transform));
+    cudaDeviceSynchronize();
+
     // kernel 配置
     dim3 block(16, 16);
     dim3 grid((n_cols+15)/16, (n_rows+15)/16, num_depth_plane);
     
-    shift_and_sum_kernel<<<grid, block>>>(d_images, d_volume,
-    d_disp_x, d_disp_y, n_rows, n_cols, patch_size, 
-    num_depth_plane);
-        
-    cudaError_t err1 = cudaGetLastError();
-    if(err1 != cudaSuccess) printf("Kernel error: %s\n", cudaGetErrorString(err1));
-    
-    // 结果拷回 CPU
-    // Device → Host 异步拷贝
-    std::vector<cv::Vec3f> h_volume(num_depth_plane * n_rows * n_cols);
-    static_assert(sizeof(Vec3f) == sizeof(cv::Vec3f), "Vec3f layout mismatch!");
-    cudaMemcpy(h_volume.data(), d_volume,
-    h_volume.size() * sizeof(Vec3f),
-    cudaMemcpyDeviceToHost);
-
+    //generate depth_range
+    // cudaMemcpy(d_depth, depth_range.data(),
+    // sizeof(float) * num_depth_plane, cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(d_depth, depth_range.data(),
+                sizeof(float) * num_depth_plane,
+                cudaMemcpyHostToDevice, m_stream);
+    shift_and_sum_kernel<<<grid, block, 0, m_stream>>>(d_images, d_volume,
+    n_rows, n_cols, patch_size, 
+    d_depth, num_depth_plane, pixel_size, s, f);
+    cudaError_t err_shift = cudaGetLastError();
+    if(err_shift != cudaSuccess) printf("shift_Kernel error: %s\n", cudaGetErrorString(err_shift));
     cudaDeviceSynchronize();
     
-    return h_volume;
+    
+    int m = 2;
+    brenner_kernel<<<grid, block, 0, m_stream>>>(d_volume, d_brenner_scores, m, n_rows, n_cols, num_depth_plane);
+    cudaError_t err_brenner = cudaGetLastError();
+    if(err_brenner != cudaSuccess) printf("brenner_Kernel error: %s\n", cudaGetErrorString(err_brenner));
+    cudaDeviceSynchronize();
+    
+    std::vector<float> h_brenner_scores(num_depth_plane);
+    // cudaMemcpy(h_brenner_scores.data(), d_brenner_scores,
+    // h_brenner_scores.size() * sizeof(float),
+    // cudaMemcpyDeviceToHost);
+    cudaMemcpyAsync(h_brenner_scores.data(), d_brenner_scores,
+                sizeof(float) * num_depth_plane,
+                cudaMemcpyDeviceToHost, m_stream);
+    float z0 = Equation_solving(h_brenner_scores, depth_range);
+    cudaDeviceSynchronize();   
+            
+                              // ------------
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float ms = 0;
+    cudaEventElapsedTime(&ms, start, stop);
+    printf("imageprocess_cuda耗时 : %f ms\n", ms);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    //------------------
+    
+   
+    // cudaMemcpy(d_depth_1, &z0,
+    // sizeof(float) , cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(d_depth_1, &z0,
+    sizeof(float) , cudaMemcpyHostToDevice, m_stream);
+    shift_and_sum_kernel<<<grid, block, 0, m_stream>>>(d_images, d_volume_1,
+        n_rows, n_cols, patch_size, 
+        d_depth_1, num_depth_plane, pixel_size, s, f);
+    cudaDeviceSynchronize();
+        
+    std::vector<cv::Vec3f> h_volume( n_rows * n_cols);
+    // // cudaMemcpy(h_volume.data(), d_volume_1,
+    // // h_volume.size() * sizeof(cv::Vec3f),
+    // // cudaMemcpyDeviceToHost);
+    cudaMemcpyAsync(h_volume.data(), d_volume_1,
+    h_volume.size() * sizeof(cv::Vec3f),
+    cudaMemcpyDeviceToHost, m_stream);
+    cudaStreamSynchronize(m_stream);
+   
+    // 结果拷回 CPU
+    // Device → Host 异步拷贝
+    // std::vector<cv::Vec3f> h_image(n_rows * n_cols * patch_area);
+    // cudaMemcpy(h_image.data(), d_images,h_image.size() * sizeof(Vec3f),cudaMemcpyDeviceToHost);
+    // std::vector<cv::Vec3f> h_volume(num_depth_plane * n_rows * n_cols);
+    // cudaMemcpy(h_volume.data(), d_volume,
+    // h_volume.size() * sizeof(cv::Vec3f),
+    // cudaMemcpyDeviceToHost);
+    // std::string folder = "results";
+    // if(!fs::exists(folder)){
+    //     fs::create_directory(folder);  
+    // }
+    cv::Mat img(n_rows, n_cols, CV_32FC3);
+ 
+    cv::Mat img8, img8_large;
+    for(int slice_idx = 0; slice_idx < 1; slice_idx++){
+            img.setTo(cv::Scalar(0,0,0));
+            img8.setTo(cv::Scalar(0,0,0));
+            img8_large.setTo(cv::Scalar(0,0,0));
+            for (int i = 0; i < n_rows; ++i) {
+                    cv::Vec3f* ptr = img.ptr<cv::Vec3f>(i);
+                    for (int j = 0; j < n_cols; ++j) {
+                            int idx = slice_idx * n_rows * n_cols + i * n_cols + j; // slice_idx 可用于多深度平面
+                            ptr[j] = h_volume[idx];
+                
+                        }
+                    }
+            // 转为 8-bit 显示
+            img.convertTo(img8, CV_8UC3, 255.0);
+            cv::resize(img8, img8_large, cv::Size(), 10.0 ,10.0,cv::INTER_NEAREST);
+            // std::string filename = folder + "/output"+ std::to_string(slice_idx) +".png";
+            // cv::imwrite("shift_and_sum_original.bmp", img8);
+            // cv::imwrite("shift_and_sum_larger.bmp", img8_large);
+            // // // 显示
+     
+            imshow("Volume Slice", img8_large);
+            imshow("Volume Slice_original", img8);
+            cv::waitKey(10);
+            
+            // cout<<"value:"<<h_brenner_scores[slice_idx]<<" depth:"<<depth_range[slice_idx]<<endl;
+        }
+    
+    //  for(int s = 0; s < patch_size ; s++){
+    //         for(int t = 0; t < patch_size; t++){
+    //             img.setTo(cv::Scalar(0,0,0));
+
+    //             for (int u = 0; u < n_rows; ++u) {
+    //                cv::Vec3f* ptr = img.ptr<cv::Vec3f>(u);
+    //                for (int v = 0; v < n_cols; ++v) {
+    //                    int idx = (s * patch_size + t) * n_rows * n_cols + u * n_cols + v; // slice_idx 可用于多深度平面
+    //                    ptr[v] = h_image[idx];
+                   
+    //                }
+    //            }
+    //             cv::Mat img8, img8_large;
+    //            img.convertTo(img8, CV_8UC3, 255.0);
+    //            cv::resize(img8, img8_large, cv::Size(), 10.0 ,10.0, cv::INTER_LINEAR);
+    //             // std::string filename = folder + "/output"+ std::to_string(s*patch_size +t) +".png";
+    //             // cv::imwrite(filename, img8);
+    //         if (s * patch_size + t == patch_size * patch_size /2) 
+    //          // 显示
+    //         //   
+    //             imshow("Volume Slice", img8_large);
+    //                cv::waitKey(0);
+    //         }
+    //     }
+
+    
+    return z0;
+}
+
+
+float GPUProcessor::Equation_solving( vector<float>& y, const vector<float>& x){
+     // 三元一次方程求 A,B,C
+    for(auto &y_idx : y){
+        y_idx = 1 / y_idx;
+    }
+    double A = ((y[2]-y[0]) - ((y[1]-y[0])*(x[2]-x[0])/(x[1]-x[0]))) /
+               ((x[2]*x[2]-x[0]*x[0]) - ((x[1]*x[1]-x[0]*x[0])*(x[2]-x[0])/(x[1]-x[0])));
+    double B = (y[1]-y[0] - A*(x[1]*x[1]-x[0]*x[0])) / (x[1]-x[0]);
+    double C = y[0] - A*x[0]*x[0] - B*x[0];
+
+    double z0 = -B / (2*A);          // 中心点
+    double y0 = A*z0*z0 + B*z0 + C;  // 极值
+    return z0;
+}
+vector<cv::Vec3f> GPUProcessor::currentimage(){
+    int threads = 256;
+    int total_threads = n_rows * n_cols ;
+    int transform_blocks = (total_threads + threads - 1) / threads;
+    transform_kernel_centerview<<<transform_blocks, threads, 0, m_stream>>>(
+        d_imagefloat, image_rows, image_cols, 
+        d_rows_flat, d_rows_offsets,
+        total_circles, n_rows, n_cols, patch_size,
+        d_image_1
+    );
+    cudaError_t err_transform_center = cudaGetLastError();
+    if(err_transform_center != cudaSuccess) printf("transform_Kernel error: %s\n", cudaGetErrorString(err_transform_center));
+    cudaDeviceSynchronize();
+    std::vector<cv::Vec3f> h_image( n_rows * n_cols);
+  
+    cudaMemcpyAsync(h_image.data(), d_image_1,
+    h_image.size() * sizeof(cv::Vec3f),
+    cudaMemcpyDeviceToHost, m_stream);
+    cudaStreamSynchronize(m_stream);
+
+    return h_image;
 }
 void GPUProcessor::prepare_data(){
     rows_flat.clear();
@@ -367,23 +580,28 @@ void GPUProcessor::extract_rows(const vector<CircleInf>& circleList, const float
     
 }
 void GPUProcessor::cuda_preprocess(const cv::Mat& image_mla){
-    cv::cuda::GpuMat d_img;
-    d_img.upload(image_mla);
-    uchar3* d_img_ptr = d_img.ptr<uchar3>();
-    
-    image_rows = d_img.rows;
-    image_cols = d_img.cols;
+  
+   
     size_t step = d_img.step; 
+    
+    CV_Assert(image_mla.isContinuous() && image_mla.type() == CV_8UC3);
+    d_img.upload(image_mla);
+    cudaError_t err_upload = cudaGetLastError();
+    if(err_upload != cudaSuccess) printf("copy_Kernel error: %s\n", cudaGetErrorString(err_upload));
+    uchar3* d_img_ptr = d_img.ptr<uchar3>();
+    // size_t size_bytes = image_rows * image_cols * sizeof(uchar3);
+    // cudaMemcpyAsync(d_img_ptr, image_mla.ptr<uchar3>(), size_bytes, cudaMemcpyHostToDevice, m_stream);
     
     
     dim3 block_copy(16, 16);
     dim3 grid_copy((image_cols + 15)/16, (image_rows + 15)/16);
     // 分配输出 device 内存（用 float*，回传时直接拷回到 Vec3f 数组）
-    cudaMalloc(&d_imagefloat, sizeof(Vec3f) * image_rows * image_cols);
-    copy_kernel<<<grid_copy, block_copy>>>(d_img_ptr, image_rows, image_cols, step, d_imagefloat);
-    cudaError_t err = cudaGetLastError();
-    if(err != cudaSuccess) printf("Kernel error: %s\n", cudaGetErrorString(err));
-    // cudaDeviceSynchronize();
+    
+    copy_kernel<<<grid_copy, block_copy, 0, m_stream>>>(d_img_ptr, image_rows, image_cols, step, d_imagefloat);
+    cudaStreamSynchronize(m_stream);
+    cudaError_t err_copy = cudaGetLastError();
+    if(err_copy != cudaSuccess) printf("copy_Kernel error: %s\n", cudaGetErrorString(err_copy));
+  
 }
 
 void GPUProcessor::preprocess(const vector<cv::Vec3f>& circles, vector<CircleInf>& sortedList){

@@ -21,30 +21,13 @@ struct Vec3f {
 // 继承自父类，负责 CUDA 部分
 class GPUProcessor : public ImageProcessor {
 public:
-    GPUProcessor(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size, const int num_depth_plane, const std::vector<float> disparity_x_flat, const std::vector<float> disparity_y_flat);
+    GPUProcessor(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size,  const int image_rows, const int image_cols);
     virtual ~GPUProcessor();
 
-    std::vector<cv::Vec3f> imageprocess_cuda(
-    const cv::Mat& image_mla ) override;                    // CV_8UC3
-    
+    float imageprocess_cuda(
+    const cv::Mat& image_mla, const vector<float>& depth_range) override;                    // CV_8UC3
+    vector<cv::Vec3f> currentimage() override;
 
-   
-   
-    //  // 声明 kernel
-    // __device__ inline Vec3f bilinear_lookup(const Vec3f* img, int n_rows, int n_cols, float y, float x);
-    // __global__ void transform_kernel( const Vec3f* __restrict__ input_image, int image_rows, int image_cols,
-    // const CircleInf* __restrict__ rows_flat, const int* __restrict__ rows_offsets,
-    // int n_rows, int n_cols, int total_circles,
-    // int patch_size, float half,
-    // Vec3f* __restrict__ out);
-    // __global__ void shift_and_sum_kernel(const Vec3f* d_images,  // [n_rows][n_cols][patch_area]
-    //                       Vec3f* d_volume,        // [num_depth_plane][n_rows][n_cols]
-    //                       const float* d_disp_x,  // [patch_area][num_depth_plane]
-    //                       const float* d_disp_y,  // [patch_area][num_depth_plane]
-    //                       int n_rows, int n_cols,
-    //                       int patch_size, int num_depth_plane);    
-
-    // __global__ void unchar_to_vec3f_kernel(const uchar3* __restrict__ src, Vec3f* __restrict__ dst, int rows, int cols);
 
     int get_col() const override { return n_cols; }
     int get_row() const override { return n_rows; }
@@ -53,6 +36,8 @@ private:
     void prepare_data();
     void extract_rows(const vector<CircleInf>& circleList, const float y_tolerance);
     void preprocess(const vector<cv::Vec3f>& circles, vector<CircleInf>& sortedList);
+    
+    float Equation_solving( vector<float>& y, const vector<float>& x);
     //--------related CUDA
     
     // int32_t m_device ;
@@ -63,14 +48,22 @@ private:
 
     CircleInf* d_rows_flat = nullptr;
     int* d_rows_offsets = nullptr;
-    float* d_disp_x = nullptr;
-    float* d_disp_y = nullptr;
-    Vec3f* d_imagefloat ;
-    Vec3f* d_images ;
+    // float* d_disp_x = nullptr;
+    // float* d_disp_y = nullptr;
+    Vec3f* d_imagefloat = nullptr;//transform_type
+    Vec3f* d_images = nullptr;
     Vec3f* d_volume = nullptr;
-
+    // float* d_volume = nullptr;
+    float* d_brenner_scores = nullptr;
+    float* d_depth = nullptr;//depths of the num_plane
+    Vec3f* d_volume_1 = nullptr;
+    float* d_depth_1 = nullptr;
+    Vec3f* d_image_1 = nullptr;
+    
     int image_rows;
     int image_cols;
+    // vector<float>& depth_range;
+    cv::cuda::GpuMat d_img;
     //---------the parament of cpu logic
     vector<vector<CircleInf>> rows;
 
@@ -79,10 +72,13 @@ private:
     int total_circles ;
     int total_uv   = n_cols * n_rows;
     int total_pix  = patch_area * total_uv;
- 
     //---optical parament
 
     int patch_size = 0;
     int patch_area = patch_size * patch_size;
-    int num_depth_plane;
+    int num_depth_plane = 3;
+    int mid_idx = patch_size / 2;
+    float pixel_size = 2.0;
+    int s = 125;//the diameter of the lens
+    int f = 2500;// the focal length of the lens
 };
