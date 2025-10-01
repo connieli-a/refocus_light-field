@@ -17,8 +17,8 @@ int main(){
     cv::Rect roi(rangex1, rangey1, (rangex2 - rangex1), (rangey2 - rangey1));
     int patch_size = 64;
     float tolerance = 15;
-    int num_depth_plane = 3;//fixed
-    float start = -2, end = 2;
+    int num_depth_plane = 5;//fixed
+    float start = -5, end = 5;
     int screenWidth = 1536; // 屏幕宽
     int screenHeight = 864; // 屏幕高
 
@@ -99,7 +99,7 @@ int main(){
             //exposure time
             CFloatPtr exposureTime(nodemap.GetNode("ExposureTime"));
             if(IsWritable(exposureTime))
-            exposureTime->SetValue(1000.0);//µs
+            exposureTime->SetValue(7000.0);//µs
             CIntegerPtr width(nodemap.GetNode("Width"));
             CIntegerPtr height(nodemap.GetNode("Height"));
             CIntegerPtr offsetx(nodemap.GetNode("OffsetX"));
@@ -120,6 +120,7 @@ int main(){
             if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.0);
 
             camera.StartGrabbing(GrabStrategy_OneByOne);
+            // camera.StartGrabbing(30, GrabStrategy_OneByOne);
             CGrabResultPtr ptrGrabResult;
             CPylonImage pylonImage;
             CImageFormatConverter converter;
@@ -170,8 +171,8 @@ int main(){
                     img.convertTo(img8, CV_8UC3, 255.0);
                     cv::resize(img8, img8_large, cv::Size(), 10.0 ,10.0, cv::INTER_NEAREST);
                     // 显示
-                    imshow("current imagez0", img8);
-                    imshow("current imagez0_large", img8_large);
+                    imshow("central view ", img8);
+                    imshow("central view_large", img8_large);
                     // imwrite("current imagez0.bmp",img8);
                     // imwrite("current imagez0_large.bmp", img8_large);
                     // if (cv::waitKey(1) == 27) // ESC 退出
@@ -180,8 +181,8 @@ int main(){
                     //the part of automatic stage control
                     //code
                     
-                    depth_range.assign({z0 - step, z0, z0 + step});
-                    cout<<depth_range[0]<<" "<<depth_range[1]<<" "<<depth_range[2]<<endl;
+                    depth_range.assign({z0 - 2 * step, z0 - step, z0, z0 + step, z0 + 2 * step});
+                   
 
 
                     auto end = chrono::high_resolution_clock::now();

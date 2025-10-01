@@ -31,6 +31,11 @@ struct CircleInf
     CircleInf(float _x, float _y, float r): x(_x), y(_y), radius(r), valid(1) {}
     
 };
+struct Result
+{
+    float brenner;
+    float z;
+};
 // struct LorentzResidual{
 //     LorentzResidual(float x, float y):x_(x),y_(y){}
 //     template<typename T>
