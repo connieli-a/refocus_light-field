@@ -5,6 +5,7 @@
 #include <iostream>
 #include <filesystem>
 #include <string>
+
 namespace fs = std::filesystem;
 
 GPUProcessor::GPUProcessor(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size_cpp,  const int image_rows, const int image_cols):  patch_size(patch_size_cpp),   image_rows(image_rows), image_cols(image_cols){
@@ -24,8 +25,8 @@ GPUProcessor::GPUProcessor(const vector<CircleInf>& circleList, const float y_to
     cudaMalloc(&d_volume_1, n_rows * n_cols * sizeof(Vec3f));
     cudaMalloc(&d_depth_1, sizeof(float) );
     cudaMalloc(&d_image_1, sizeof(Vec3f) * n_rows * n_cols);
-    cudaMalloc(&d_depth_n, sizeof(float) * num_plane);
     cudaMalloc(&d_volume_n, num_plane * n_rows * n_cols * sizeof(Vec3f));
+    cudaMalloc(&d_depth_n, sizeof(float) * num_plane);
     cudaMalloc(&d_brenner_scores_n, sizeof(float) * num_plane);
     // cudaMemcpy(d_rows_flat, rows_flat.data(),
     // sizeof(CircleInf) * total_circles, cudaMemcpyHostToDevice);
@@ -55,8 +56,8 @@ GPUProcessor::~GPUProcessor(){
     cudaFree(d_volume_1);
     cudaFree(d_depth_1);
     cudaFree(d_image_1);
-    cudaFree(d_depth_n);
     cudaFree(d_volume_n);
+    cudaFree(d_depth_n);     
     cudaFree(d_brenner_scores_n);
 }
 
@@ -331,7 +332,7 @@ float GPUProcessor::imageprocess_cuda(
     cudaDeviceSynchronize();
     
     
-    int m = 4;//2
+    int m = 4;
     brenner_kernel<<<grid, block, 0, m_stream>>>(d_volume, d_brenner_scores, m, n_rows, n_cols, num_depth_plane);
     cudaError_t err_brenner = cudaGetLastError();
     if(err_brenner != cudaSuccess) printf("brenner_Kernel error: %s\n", cudaGetErrorString(err_brenner));
@@ -351,11 +352,28 @@ float GPUProcessor::imageprocess_cuda(
         
     }
    
-    // float z0 = 1;
-    float z0  = quadratic_fit_5points(h_brenner_scores, depth_range);
-    float z_best = find_bestvalue(z0);
+   
+    auto it = std::max_element(h_brenner_scores.begin(), h_brenner_scores.end());
+    int max_idx = std::distance(h_brenner_scores.begin(), it);
+    float z_coarse = depth_range[max_idx];
+    float max_score = *it;
+    float min_score = *std::min_element(h_brenner_scores.begin(), h_brenner_scores.end());
+    cout<<"coarse_best:"<<z_coarse<<", score = "<<max_score<<endl;
+    float peak_contract = (max_score - min_score) / max_score;
+    float z_best = z_coarse;
+    cout<<"peak_contract:"<<peak_contract<<endl;
+    if(peak_contract < 0.005){
+        cout<<"peak too flat"<<endl;
 
+    }else{
+       
+        float fine_step = step * 0.2f;//fine_step (0.9-1)
+        cout<<"fine_step"<<fine_step<<endl;
+       
+        z_best = find_bestvalue(z_coarse, fine_step);
+    }
 
+    generate_best_view(z_best);
 
 
 
@@ -469,32 +487,42 @@ float GPUProcessor::imageprocess_cuda(
 
 
 
-float GPUProcessor::quadratic_fit_5points(const std::vector<float>& y, const std::vector<float>& x) {
-    if (y.size() != 5 || x.size() != 5) {
-        std::cerr << "Expect 5 points!" << std::endl;
-        return 0.0f;
+float GPUProcessor::quadratic_fit_points(const std::vector<float>& scores, const std::vector<float>& depths) {
+    int n = scores.size();
+    if (depths.size() != n || n < 3) {
+        std::cerr << "Expect at least 3 points!" << std::endl;
+        return depths[n/2];
     }
+    float max_score = *std::max_element(scores.begin(), scores.end());
+    float min_score = *std::min_element(scores.begin(), scores.end());
+    float range = max_score - min_score;
 
+    if(range < 1e-6 * max_score){
+        cout<<"data is too similar"<<endl;
+        auto max_it = std::max_element(scores.begin(), scores.end());
+        return depths[std::distance(scores.begin(), max_it)];
+    }
     // 构造正规方程的矩阵
-    double Sx0 = 5.0;    // sum of 1
-    double Sx1 = 0, Sx2 = 0, Sx3 = 0, Sx4 = 0;
-    double Sy = 0, Sxy = 0, Sx2y = 0;
+    double sum_w = 0, sum_wx = 0, sum_wx2 = 0;
+    double sum_wy = 0, sum_wxy = 0, sum_wx2y = 0;
+    double sum_wx3 = 0, sum_wx4 = 0;
 
-    for (int i = 0; i < 5; ++i) {
-        double xi = x[i];
-        double yi = y[i];
-        double xi2 = xi * xi;
-        double xi3 = xi2 * xi;
-        double xi4 = xi3 * xi;
-
-        Sx1 += xi;
-        Sx2 += xi2;
-        Sx3 += xi3;
-        Sx4 += xi4;
-
-        Sy += yi;
-        Sxy += xi * yi;
-        Sx2y += xi2 * yi;
+    for (int i = 0; i < n; ++i) {
+        double normalized = (scores[i] - min_score) / range;
+        double weight = pow(normalized, 4.0);  
+        weight = max(weight, 0.005);
+        cout<<"weight:"<<weight<<endl;
+        double x = static_cast<double>(depths[i]);
+        double y = static_cast<double>(scores[i]);
+        
+        sum_w += weight;
+        sum_wx += weight * x;
+        sum_wx2 += weight * x * x;
+        sum_wx3 += weight * x * x * x;
+        sum_wx4 += weight * x * x * x * x;
+        sum_wy += weight * y;
+        sum_wxy += weight * x * y;
+        sum_wx2y += weight * x * x * y;
     }
 
     // 3x3 矩阵正规方程: 
@@ -503,29 +531,85 @@ float GPUProcessor::quadratic_fit_5points(const std::vector<float>& y, const std
     // | Sx2 Sx1 Sx0 |   |C|   |Sy   |
 
     // 用克拉默法则求解
-    double D = Sx4*(Sx2*Sx0 - Sx1*Sx1) - Sx3*(Sx3*Sx0 - Sx1*Sx2) + Sx2*(Sx3*Sx1 - Sx2*Sx2);
-    double Da = Sx2y*(Sx2*Sx0 - Sx1*Sx1) - Sxy*(Sx3*Sx0 - Sx1*Sx2) + Sy*(Sx3*Sx1 - Sx2*Sx2);
-    double Db = Sx4*(Sxy*Sx0 - Sy*Sx1) - Sx2y*(Sx3*Sx0 - Sx1*Sx2) + Sx2*(Sx3*Sy - Sx2*Sxy);
-    double Dc = Sx4*(Sx2*Sy - Sx1*Sx2y) - Sx3*(Sx3*Sy - Sx1*Sx2y) + Sx2*(Sx3*Sxy - Sx2*Sx2y);
+    double D = sum_wx4 * (sum_wx2 * sum_w - sum_wx * sum_wx) 
+             - sum_wx3 * (sum_wx3 * sum_w - sum_wx * sum_wx2) 
+             + sum_wx2 * (sum_wx3 * sum_wx - sum_wx2 * sum_wx2);
+    if (fabs(D) < 1e-10) {
+        std::cerr << "Singular matrix (D=" << D << "), using max point" << std::endl;
+        auto max_it = std::max_element(scores.begin(), scores.end());
+        return depths[std::distance(scores.begin(), max_it)];
+    }
+    cout<<"D:"<<D<<endl;
+    double Da = sum_wx2y * (sum_wx2 * sum_w - sum_wx * sum_wx) 
+              - sum_wxy * (sum_wx3 * sum_w - sum_wx * sum_wx2) 
+              + sum_wy * (sum_wx3 * sum_wx - sum_wx2 * sum_wx2);
+              
+    double Db = sum_wx4 * (sum_wxy * sum_w - sum_wy * sum_wx) 
+              - sum_wx2y * (sum_wx3 * sum_w - sum_wx * sum_wx2) 
+              + sum_wx2 * (sum_wx3 * sum_wy - sum_wx2 * sum_wxy);
+    
+    // double Dc = sum_wx4 * (sum_wx2 * sum_wy - sum_wx * sum_wx2y)
+    //       - sum_wx3 * (sum_wx3 * sum_wy - sum_wx * sum_wx2y)
+    //       + sum_wx2 * (sum_wx3 * sum_wxy - sum_wx2 * sum_wx2y);
+
+    
 
     double A = Da / D;
     double B = Db / D;
-    // double C = Dc / D; // C 不用求极值
-
+    double C = (sum_wy - A * sum_wx2 - B * sum_wx) / sum_w;
+    
     float z_best = -B / (2*A);
+    double y_best = A * z_best * z_best + B * z_best + C;
+    cout<<"z_best"<<z_best<<"y_best"<<y_best<<endl;
     return z_best;
 }
-float GPUProcessor::find_bestvalue(float z0){
+
+float GPUProcessor::parabolic_peak_refine(const vector<float>& brenner_scores, const vector<float>& depth){
+    auto max = std::max_element(brenner_scores.begin(), brenner_scores.end());
+    int max_idx = std::distance(brenner_scores.begin(), max);
+    if(max_idx == 0 || max_idx == brenner_scores.size() - 1){
+        cout<<"center is not the maximun"<<endl;
+        return depth[max_idx];
+    }
+    float x1 = depth[max_idx - 1];
+    float x2 = depth[max_idx];
+    float x3 = depth[max_idx + 1];
+    float y1 = brenner_scores[max_idx - 1];
+    float y2 = brenner_scores[max_idx];
+    float y3 = brenner_scores[max_idx + 1];
+    float numerator = y1 - y3;
+    float denominator = 2 * (y1 - 2*y2 + y3);
+    float curvature = fabs(y1 - 2 * y2 + y3) / y2;
+    
+    if(curvature < 0.0001){
+        cout<<"curvature is too small"<<endl;
+        return depth[max_idx];
+    }
+    if(denominator == 0){
+        cout<<"fitting error"<<endl;
+        return depth[max_idx];
+    }
+    cout<<"curvature"<<curvature<<endl;
+    float z_best = x2 + numerator / denominator * (x3 - x2);
+    float y_best = y2 - (numerator * numerator) / (8 * (y1 - 2*y2 + y3));
+    cout<<"z_best"<<z_best<<"y_best"<<y_best<<endl;
+
+    return z_best;
+}
+
+float GPUProcessor::find_bestvalue(float z_coarse, const float& fine_step){
     //second time fitting curve and generate the best depth image
     // kernel 配置
+   
     
+
     dim3 block(16, 16);
     dim3 grid((n_cols+15)/16, (n_rows+15)/16, num_plane);
-    dim3 grid_1((n_cols+15)/16, (n_rows+15)/16, 1);
+   
 
     vector<float> depth_zn;
-   
-    depth_zn.assign({ z0 - 2 * point_step, z0 - point_step, z0, z0 + point_step, z0 + 2 * point_step});
+    depth_zn.assign({z_coarse - 3*fine_step, z_coarse - 2*fine_step,z_coarse - fine_step, z_coarse, z_coarse + fine_step, z_coarse + 2 * fine_step, z_coarse + 3 * fine_step});
+    // depth_zn.assign({z_coarse - fine_step, z_coarse, z_coarse + fine_step});
     cudaMemcpyAsync(d_depth_n, depth_zn.data(),
                 sizeof(float) * num_plane,
                 cudaMemcpyHostToDevice, m_stream);
@@ -539,7 +623,7 @@ float GPUProcessor::find_bestvalue(float z0){
     cudaDeviceSynchronize();
     
     
-    int m = 4;//2
+    int m = 4;
     brenner_kernel<<<grid, block, 0, m_stream>>>(d_volume_n, d_brenner_scores_n, m, n_rows, n_cols, num_plane);
     cudaError_t err_brenner = cudaGetLastError();
     if(err_brenner != cudaSuccess) printf("brenner_Kernel error: %s\n", cudaGetErrorString(err_brenner));
@@ -551,10 +635,21 @@ float GPUProcessor::find_bestvalue(float z0){
                 cudaMemcpyDeviceToHost, m_stream);
     cudaDeviceSynchronize(); 
     
-    for(int i = 0; i < num_plane; i++){
+    
+    for(int i= 0; i < num_plane; i++)
         cout<<h_brenner_scores_n[i]<<","<<depth_zn[i]<<endl;
-    }
-    float z_best  = quadratic_fit_5points(h_brenner_scores_n, depth_zn);
+ 
+    float z_refined  = quadratic_fit_points(h_brenner_scores_n, depth_zn);
+    
+    
+    return z_refined;
+    
+ 
+    
+}
+void GPUProcessor::generate_best_view(const float& z_best){
+    dim3 block(16, 16);
+    dim3 grid_1((n_cols+15)/16, (n_rows+15)/16, 1);
     cudaMemcpyAsync(d_depth_1, &z_best,
             sizeof(float) ,
             cudaMemcpyHostToDevice, m_stream);
@@ -562,30 +657,12 @@ float GPUProcessor::find_bestvalue(float z0){
     n_rows, n_cols, patch_size, 
     d_depth_1, 1, pixel_size, s, f);
     cudaError_t err_shift_1 = cudaGetLastError();
-    if(err_shift_1 != cudaSuccess) printf("shift_Kernel error: %s\n", cudaGetErrorString(err_shift));
+    if(err_shift_1 != cudaSuccess) printf("shift_Kernel error: %s\n", cudaGetErrorString(err_shift_1));
     cudaDeviceSynchronize();
 
     std::vector<cv::Vec3f> h_volume(n_rows * n_cols);
     cudaMemcpyAsync(h_volume.data(), d_volume_1, h_volume.size() * sizeof(cv::Vec3f), cudaMemcpyDeviceToHost, m_stream);
-    // vector<Result> result;
-    // result.reserve(num_plane);
-    // for(int i = 0; i < num_plane; i++){
-    //     result.push_back({h_brenner_scores_n[i], depth_zn[i]});
-    //     cout<<h_brenner_scores_n[i]<<","<<depth_zn[i]<<endl;
-    // }
-    // auto best = std::max_element(result.begin(),result.end(),[](const Result &a, const Result &b){return a.brenner < b.brenner;});
-    // Result best_value = * best;
-    // float z_best = best_value.z;
-
-    // int best_idx = std::distance(result.begin(), best);
-    // std::vector<cv::Vec3f> h_volume( n_rows * n_cols );
-    // cudaMemcpyAsync(h_volume.data(), d_volume_n + best_idx * n_cols * n_rows,
-    // h_volume.size() * sizeof(cv::Vec3f),
-    // cudaMemcpyDeviceToHost, m_stream);
-    // // cudaMemcpyAsync(h_volume.data(), d_volume_5,
-    // // h_volume.size() * sizeof(cv::Vec3f),
-    // // cudaMemcpyDeviceToHost, m_stream);
-    // cudaStreamSynchronize(m_stream);
+   
 
   
    
@@ -606,12 +683,25 @@ float GPUProcessor::find_bestvalue(float z0){
     imshow("Volume Slice", img8_large);
     imshow("Volume Slice_original", img8);
     cv::waitKey(1);
-    
+}
+float GPUProcessor::Equation_solving( vector<float>& y, const vector<float>& x){
+     // 三元一次方程求 A,B,C
+   
+    for(auto &y_idx : y){
+       if(fabs(y_idx) > 1e-6f)
+            y_idx = 1 / y_idx;
+        else
+            y_idx = 0;
+    }
 
-    // cout<<"value:"<<h_brenner_scores[slice_idx]<<" depth:"<<depth_range[slice_idx]<<endl;
+    double A = ((y[2]-y[0]) - ((y[1]-y[0])*(x[2]-x[0])/(x[1]-x[0]))) /
+               ((x[2]*x[2]-x[0]*x[0]) - ((x[1]*x[1]-x[0]*x[0])*(x[2]-x[0])/(x[1]-x[0])));
+    double B = (y[1]-y[0] - A*(x[1]*x[1]-x[0]*x[0])) / (x[1]-x[0]);
+    double C = y[0] - A*x[0]*x[0] - B*x[0];
 
-
-    return z_best;
+    float z0 = -B / (2*A);          // 中心点
+    float y0 = A*z0*z0 + B*z0 + C;  // 极值
+    return z0;
 }
 vector<cv::Vec3f> GPUProcessor::currentimage(){
     int threads = 256;
@@ -635,25 +725,7 @@ vector<cv::Vec3f> GPUProcessor::currentimage(){
 
     return h_image;
 }
-float GPUProcessor::Equation_solving( vector<float>& y, const vector<float>& x){
-     // 三元一次方程求 A,B,C
-   
-    for(auto &y_idx : y){
-       if(fabs(y_idx) > 1e-6f)
-            y_idx = 1 / y_idx;
-        else
-            y_idx = 0;
-    }
 
-    double A = ((y[2]-y[0]) - ((y[1]-y[0])*(x[2]-x[0])/(x[1]-x[0]))) /
-               ((x[2]*x[2]-x[0]*x[0]) - ((x[1]*x[1]-x[0]*x[0])*(x[2]-x[0])/(x[1]-x[0])));
-    double B = (y[1]-y[0] - A*(x[1]*x[1]-x[0]*x[0])) / (x[1]-x[0]);
-    double C = y[0] - A*x[0]*x[0] - B*x[0];
-
-    float z0 = -B / (2*A);          // 中心点
-    float y0 = A*z0*z0 + B*z0 + C;  // 极值
-    return z0;
-}
 void GPUProcessor::prepare_data(){
     rows_flat.clear();
     rows_offsets.clear();

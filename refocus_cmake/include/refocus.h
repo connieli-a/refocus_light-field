@@ -36,21 +36,7 @@ struct Result
     float brenner;
     float z;
 };
-// struct LorentzResidual{
-//     LorentzResidual(float x, float y):x_(x),y_(y){}
-//     template<typename T>
-//     bool operator()(const T* const params, T* residual)const{
-//         T alpha = params[0];
-//         T beta = params[1];
-//         T z0 = params[2];
-//         T model = (beta + (x_ - z0) * (x_ - z0)) / alpha;
-//         residual[0] = model - y_;
-//         return true;
-//     }
-//     private:
-//     const double x_;
-//     const double y_;
-// };
+
 class ImageProcessor {
     public:
     virtual ~ImageProcessor() = default;
@@ -75,7 +61,6 @@ class ImageProcessor {
 
 
 
-// void generate_disparity_table(const int num_depth_plane, const int start, const int end, const int patch_size, vector<float>& disparity_x_flat, vector<float>& disparity_y_flat);
 
 
 

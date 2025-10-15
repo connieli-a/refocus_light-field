@@ -37,9 +37,12 @@ private:
     void extract_rows(const vector<CircleInf>& circleList, const float y_tolerance);
     void preprocess(const vector<cv::Vec3f>& circles, vector<CircleInf>& sortedList);
     
+   
+    float find_bestvalue(float z0, const float& fine_step);
     float Equation_solving( vector<float>& y, const vector<float>& x);
-    float find_bestvalue(float z0);
-    float quadratic_fit_5points(const std::vector<float>& y, const std::vector<float>& x);
+    float quadratic_fit_points(const std::vector<float>& y, const std::vector<float>& x);
+    float parabolic_peak_refine(const vector<float>& brenner_scores, const vector<float>& depth);
+    void generate_best_view(const float& z_best);
     //--------related CUDA
     
     // int32_t m_device ;
@@ -53,17 +56,17 @@ private:
     // float* d_disp_x = nullptr;
     // float* d_disp_y = nullptr;
     Vec3f* d_imagefloat = nullptr;//transform_type
-    Vec3f* d_images = nullptr;
+    Vec3f* d_images = nullptr;//save the data after transform
     Vec3f* d_volume = nullptr;
     // float* d_volume = nullptr;
     float* d_brenner_scores = nullptr;
     float* d_depth = nullptr;//depths of the num_plane
-    Vec3f* d_volume_1 = nullptr;
+    Vec3f* d_volume_1 = nullptr;//generate display image
     float* d_depth_1 = nullptr;
     Vec3f* d_image_1 = nullptr;
-    float* d_depth_n = nullptr;
-    Vec3f* d_volume_n = nullptr;
+    Vec3f* d_volume_n = nullptr;//estimated algorithm
     float* d_brenner_scores_n = nullptr;
+    float* d_depth_n = nullptr;  
 
     int image_rows;
     int image_cols;
@@ -82,10 +85,11 @@ private:
     int patch_size = 0;
     int patch_area = patch_size * patch_size;
     int num_depth_plane = 5;
+    float step = static_cast<float>(10 - -10) / static_cast<float>(num_depth_plane - 1);
     int mid_idx = patch_size / 2;
     float pixel_size = 2.0;
     int s = 125;//the diameter of the lens micrometer
     int f = 2500;// the focal length of the lens micrometer
-    int num_plane = 5;
-    float point_step = 1.0; 
+    int num_plane = 7;
+    
 };

@@ -17,8 +17,8 @@ int main(){
     cv::Rect roi(rangex1, rangey1, (rangex2 - rangex1), (rangey2 - rangey1));
     int patch_size = 64;
     float tolerance = 15;
-    int num_depth_plane = 5;//fixed
-    float start = -5, end = 5;
+    int num_depth_plane = 5;
+    float start = -10, end = 10;
     int screenWidth = 1536; // 屏幕宽
     int screenHeight = 864; // 屏幕高
 
@@ -87,7 +87,7 @@ int main(){
         std:: shared_ptr<ImageProcessor> refocus_pointer = ImageProcessor::create(circleList, tolerance, patch_size, rangey2 - rangey1, rangex2 - rangex1);
         int col = refocus_pointer->get_col();
         int row = refocus_pointer->get_row();
-        cv::Mat img(row, col, CV_32FC3);
+        
         // step /= 2;
         PylonInitialize();
         try{
@@ -144,7 +144,7 @@ int main(){
                     cv::imshow("Camera", display);
                     // imwrite("Camera.bmp",display);
                     if (cv::waitKey(1) == 27) // ESC 退出
-                    break;
+                        break;
 
                     // image_mla = cv::imread("data/original_20250617_180038.bmp");
                     // image_mla_roi = image_mla(roi).clone();
@@ -152,21 +152,20 @@ int main(){
                     if (image_mla_roi.empty()) {
                         std::cerr << "ROI is empty!" << std::endl;
                     }
-                    // vector<cv::Vec3f> volume = refocus_pointer->imageprocess_cuda(image_mla_roi);
-                    // cout <<"ROI type: " << image_mla_roi.type() << "ROI: " << roi << "  Image size_cpp: " 
-                    // << image_mla_roi.cols << "x" << image_mla_roi.rows << endl;
+                   
         
                     float z0 = refocus_pointer->imageprocess_cuda(image_mla_roi, depth_range);
                     cout<<"best postion value:" << z0 <<endl;
                     vector<cv::Vec3f> volume = refocus_pointer->currentimage();
-                    for (int u = 0; u < row; ++u) {
-                        cv::Vec3f* ptr = img.ptr<cv::Vec3f>(u);
-                        for (int v = 0; v < col; ++v) {
-                            int idx =  u * col + v; 
-                            ptr[v] = volume[idx];
+                    // for (int u = 0; u < row; ++u) {
+                    //     cv::Vec3f* ptr = img.ptr<cv::Vec3f>(u);
+                    //     for (int v = 0; v < col; ++v) {
+                    //         int idx =  u * col + v; 
+                    //         ptr[v] = volume[idx];
                             
-                        }
-                    }
+                    //     }
+                    // }
+                    cv::Mat img(row, col, CV_32FC3, volume.data());
                     cv::Mat img8, img8_large;
                     img.convertTo(img8, CV_8UC3, 255.0);
                     cv::resize(img8, img8_large, cv::Size(), 10.0 ,10.0, cv::INTER_NEAREST);
@@ -181,7 +180,9 @@ int main(){
                     //the part of automatic stage control
                     //code
                     
-                    depth_range.assign({z0 - 2 * step, z0 - step, z0, z0 + step, z0 + 2 * step});
+                    // depth_range.assign({ z0 - 3 * step, z0 - 2 * step, z0 - step, z0, z0 + step, z0 + 2 * step, z0 + 3 * step});
+                    depth_range.assign({  z0 - 2 * step, z0 - step, z0, z0 + step, z0 + 2 * step});
+                    //  depth_range.assign({  z0 - step, z0, z0 + step});
                    
 
 
@@ -295,21 +296,6 @@ int main(){
 
     }
 
-    // ImageProcessor* proc = new CudaProcessor();
-
-    // std::vector<float> input = {1,2,3,4,5};
-    // std::vector<float> cpu_out, gpu_out;
-
-    // proc->processCPU(input, cpu_out);
-    // proc->processGPU(input, gpu_out);
-
-    // std::cout << "CPU:";
-    // for (auto v : cpu_out) std::cout << " " << v;
-    // std::cout << "\n";
-
-    // std::cout << "GPU:";
-    // for (auto v : gpu_out) std::cout << " " << v;
-    // std::cout << "\n";
-    // delete proc;
+ 
     return 0;
 }
