@@ -18,21 +18,12 @@ int main(){
     int patch_size = 64;
     float tolerance = 15;
     int num_depth_plane = 5;
-    float start = -10, end = 10;
     int screenWidth = 1536; // 屏幕宽
     int screenHeight = 864; // 屏幕高
 
 
-    vector<float> depth_range;
-    float step = static_cast<float>(end - start) / static_cast<float>(num_depth_plane - 1);
-    if(num_depth_plane == 1)
-        depth_range.push_back(start);
-    else{
-        for (int i = 0; i < num_depth_plane; ++i)
-        {
-            depth_range.push_back(start + step * i);
-        }
-    }
+
+ 
     
     cv::Mat image = cv::imread("data/Image_2025-09-16.bmp");//be cutted
     cv::Mat image_mla;
@@ -52,12 +43,7 @@ int main(){
     if(!circles.empty()){
         
         
-        // //create the disparity table
-        // std::vector<float> disparity_x_flat(patch_size * patch_size * num_depth_plane, 0.0f);
-        // std::vector<float> disparity_y_flat(patch_size * patch_size * num_depth_plane, 0.0f);
-        // // vector<vector<vector<float>>> disparity_x(patch_size, vector<vector<float>>(patch_size, vector<float>(num_depth_plane, 0.0f)));
-        // // vector<vector<vector<float>>> disparity_y(patch_size, vector<vector<float>>(patch_size, vector<float>(num_depth_plane, 0.0f)));
-        // generate_disparity_table(num_depth_plane, start, end, patch_size, disparity_x_flat, disparity_y_flat);
+      
         //orgnaize the array
         
         vector<CircleInf> circleList;
@@ -88,7 +74,7 @@ int main(){
         int col = refocus_pointer->get_col();
         int row = refocus_pointer->get_row();
         
-        // step /= 2;
+        
         PylonInitialize();
         try{
              //open camera
@@ -154,8 +140,10 @@ int main(){
                     }
                    
         
-                    float z0 = refocus_pointer->imageprocess_cuda(image_mla_roi, depth_range);
-                    cout<<"best postion value:" << z0 <<endl;
+                    float z_alpha = refocus_pointer->imageprocess_cuda(image_mla_roi);
+                    float displacement = 790.13 * (1 - z_alpha)/400;
+                    cout<<"best alpha: "<<z_alpha<<endl;
+                    cout<<"best postion value:" << displacement <<endl;
                     vector<cv::Vec3f> volume = refocus_pointer->currentimage();
                     // for (int u = 0; u < row; ++u) {
                     //     cv::Vec3f* ptr = img.ptr<cv::Vec3f>(u);
@@ -180,11 +168,7 @@ int main(){
                     //the part of automatic stage control
                     //code
                     
-                    // depth_range.assign({ z0 - 3 * step, z0 - 2 * step, z0 - step, z0, z0 + step, z0 + 2 * step, z0 + 3 * step});
-                    depth_range.assign({  z0 - 2 * step, z0 - step, z0, z0 + step, z0 + 2 * step});
-                    //  depth_range.assign({  z0 - step, z0, z0 + step});
-                   
-
+           
 
                     auto end = chrono::high_resolution_clock::now();
                     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

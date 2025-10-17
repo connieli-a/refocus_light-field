@@ -33,33 +33,33 @@ std::shared_ptr<ImageProcessor> ImageProcessor::create(const vector<CircleInf>& 
 
 
   
-void generate_disparity_table(const int num_depth_plane, const int start, const int end, const int patch_size, vector<float>& disparity_x_flat, vector<float>& disparity_y_flat){
-    int mid_idx = patch_size / 2;
-    float pixel_size = 2.0;
-    int s = 125;//the diameter of the lens
-    int f = 2500;// the focal length of the lens
-    vector<float> depth_range;
+// void generate_disparity_table(const int num_depth_plane, const int start, const int end, const int patch_size, vector<float>& disparity_x_flat, vector<float>& disparity_y_flat){
+//     int mid_idx = patch_size / 2;
+//     float pixel_size = 2.0;
+//     int s = 125;//the diameter of the lens
+//     int f = 2500;// the focal length of the lens
+//     vector<float> depth_range;
     
-    //generate depth_range
-    if(num_depth_plane == 1)
-        depth_range.push_back(start);
-    else{
-        float step = static_cast<float>(end - start) / static_cast<float>(num_depth_plane - 1);
-        for (int i = 0; i < num_depth_plane; ++i)
-        {
-            /* code */
-            depth_range.push_back(start + step * i);
-        }
-    }
-    for(int z_idx = 0; z_idx < num_depth_plane; z_idx++){
-        float z = depth_range[z_idx];
-        float factor = s * (z / (f + z)) / pixel_size;
-        for(int h = 0; h < patch_size; h++){
-            for(int w = 0; w < patch_size; w++){
-                int idx = (h * patch_size + w) * num_depth_plane + z_idx;//disparity_x[h][w][z_idx]
-                disparity_x_flat[idx] = (w - mid_idx) * factor ;
-                disparity_y_flat[idx] = (h - mid_idx) * factor ;
-            }
-        }
-    }
-}
+//     //generate depth_range
+//     if(num_depth_plane == 1)
+//         depth_range.push_back(start);
+//     else{
+//         float step = static_cast<float>(end - start) / static_cast<float>(num_depth_plane - 1);
+//         for (int i = 0; i < num_depth_plane; ++i)
+//         {
+//             /* code */
+//             depth_range.push_back(start + step * i);
+//         }
+//     }
+//     for(int z_idx = 0; z_idx < num_depth_plane; z_idx++){
+//         float z = depth_range[z_idx];
+//         float factor = s * (z / (f + z)) / pixel_size;
+//         for(int h = 0; h < patch_size; h++){
+//             for(int w = 0; w < patch_size; w++){
+//                 int idx = (h * patch_size + w) * num_depth_plane + z_idx;//disparity_x[h][w][z_idx]
+//                 disparity_x_flat[idx] = (w - mid_idx) * factor ;
+//                 disparity_y_flat[idx] = (h - mid_idx) * factor ;
+//             }
+//         }
+//     }
+// }

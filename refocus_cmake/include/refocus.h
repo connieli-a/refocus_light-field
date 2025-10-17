@@ -46,8 +46,8 @@ class ImageProcessor {
     
     // pure virtual functions, only defining interfaces
     virtual float imageprocess_cuda(
-    const cv::Mat& image_mla,          // CV_8UC3
-    const vector<float>& depth_range) = 0;                     
+    const cv::Mat& image_mla) = 0;         // CV_8UC3
+                        
     virtual vector<cv::Vec3f> currentimage() = 0;
     
     virtual int get_col() const = 0;

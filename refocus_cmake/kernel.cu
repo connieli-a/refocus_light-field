@@ -11,6 +11,14 @@ namespace fs = std::filesystem;
 GPUProcessor::GPUProcessor(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size_cpp,  const int image_rows, const int image_cols):  patch_size(patch_size_cpp),   image_rows(image_rows), image_cols(image_cols){
     extract_rows(circleList, y_tolerance);
     prepare_data();
+    if(num_depth_plane == 1)
+        alpha_range.push_back(1.0);
+    else{
+        for (int i = 0; i < num_depth_plane; ++i)
+        {
+            alpha_range.push_back(start + step * i);
+        }
+    }
     //set the GPU information 
     // 使用GPUの設定
     cudaStreamCreate(&m_stream);
@@ -20,13 +28,13 @@ GPUProcessor::GPUProcessor(const vector<CircleInf>& circleList, const float y_to
     cudaMalloc(&d_imagefloat, sizeof(Vec3f) * image_rows * image_cols);
     cudaMalloc(&d_images, sizeof(Vec3f) * n_rows * n_cols * patch_area);
     cudaMalloc(&d_volume, num_depth_plane * n_rows * n_cols * sizeof(Vec3f));
-    cudaMalloc(&d_depth, sizeof(float) * num_depth_plane);
+    cudaMalloc(&d_alpha, sizeof(float) * num_depth_plane);
     cudaMalloc(&d_brenner_scores, sizeof(float) * num_depth_plane);
     cudaMalloc(&d_volume_1, n_rows * n_cols * sizeof(Vec3f));
-    cudaMalloc(&d_depth_1, sizeof(float) );
+    cudaMalloc(&d_alpha_1, sizeof(float) );
     cudaMalloc(&d_image_1, sizeof(Vec3f) * n_rows * n_cols);
     cudaMalloc(&d_volume_n, num_plane * n_rows * n_cols * sizeof(Vec3f));
-    cudaMalloc(&d_depth_n, sizeof(float) * num_plane);
+    cudaMalloc(&d_alpha_n, sizeof(float) * num_plane);
     cudaMalloc(&d_brenner_scores_n, sizeof(float) * num_plane);
     // cudaMemcpy(d_rows_flat, rows_flat.data(),
     // sizeof(CircleInf) * total_circles, cudaMemcpyHostToDevice);
@@ -38,6 +46,10 @@ GPUProcessor::GPUProcessor(const vector<CircleInf>& circleList, const float y_to
 
     cudaMemcpyAsync(d_rows_offsets, rows_offsets.data(),
                 sizeof(int) * rows_offsets.size(),
+                cudaMemcpyHostToDevice, m_stream);
+
+    cudaMemcpyAsync(d_alpha, alpha_range.data(),
+                sizeof(float) * num_depth_plane,
                 cudaMemcpyHostToDevice, m_stream);
     d_img.create(cv::Size(image_cols, image_rows), CV_8UC3);
 }
@@ -51,17 +63,17 @@ GPUProcessor::~GPUProcessor(){
     cudaFree(d_imagefloat);
     cudaFree(d_images);
     cudaFree(d_volume);
-    cudaFree(d_depth);     
+    cudaFree(d_alpha);     
     cudaFree(d_brenner_scores);
     cudaFree(d_volume_1);
-    cudaFree(d_depth_1);
+    cudaFree(d_alpha_1);
     cudaFree(d_image_1);
     cudaFree(d_volume_n);
-    cudaFree(d_depth_n);     
+    cudaFree(d_alpha_n);     
     cudaFree(d_brenner_scores_n);
 }
 
-
+//类型转换 type conversion
 __global__ void copy_kernel(const uchar3* __restrict__ src, int rows, int cols, size_t step,
                             Vec3f* __restrict__ dst)
 {
@@ -195,11 +207,66 @@ __global__ void transform_kernel_centerview( Vec3f* d_img, int image_rows, int i
 }
 
 
+// __global__ void shift_and_sum_kernel(const Vec3f* d_images,  // [patch_area][n_rows][n_cols]
+//                           Vec3f* d_volume,        // [num_depth_plane][n_rows][n_cols]
+//                           int n_rows, int n_cols, int patch_size,
+//                           const float* d_depth, const int num_depth_plane, float pixel_size, int s,//the diameter of the lens
+//                             int f )//the focal length
+// {
+//     int u = blockIdx.y * blockDim.y + threadIdx.y;//row
+//     int v = blockIdx.x * blockDim.x + threadIdx.x;//col
+//     int z = blockIdx.z;  // 当前深度平面
+
+//     if (u >= n_rows || v >= n_cols || z >= num_depth_plane) return;
+//     int mid_idx = (patch_size - 1) * 0.5f;
+//     int patch_area = patch_size * patch_size;
+//     Vec3f sum = {0, 0, 0};
+//     float depth = d_depth[z];
+//     float factor = s * (depth / ((float)f + depth)) / pixel_size;
+//     float radius = mid_idx * 0.75f ;
+//     int count = 0;
+//     for (int idx = 0; idx < patch_area; idx++) {
+       
+//         int h = idx / patch_size;
+//         int w = idx % patch_size;
+//         float r2 = (h - mid_idx) * (h - mid_idx) + (w - mid_idx) * (w - mid_idx);
+//         if(r2 <= radius * radius){
+//             // disparity compute
+//             count++;
+//             float dx = (w - mid_idx) * factor;
+//             float dy = (h - mid_idx) * factor;
+
+//             // 原始像素位置（一个一个views检查）
+//             int img_base_idx = idx * n_rows * n_cols;
+
+//             // 浮点位移，使用双线性插值
+//             float uu = (float)u + dy;
+//             float vv = (float)v + dx;
+//             // uu = fminf(fmaxf(uu, 0.f), n_rows - 1.001f);
+//             // vv = fminf(fmaxf(vv, 0.f), n_cols - 1.001f);
+//             Vec3f val = bilinear_lookup(d_images + img_base_idx, n_rows, n_cols, vv, uu);
+
+//             sum[0] += val[0];
+//             sum[1] += val[1];
+//             sum[2] += val[2];
+//         }
+//     }
+
+//     // 平均
+//     sum[0] /= count;
+//     sum[1] /= count;
+//     sum[2] /= count;
+
+    
+//     // 输出到 refocused volume
+//     int out_idx = z * n_rows * n_cols + u * n_cols + v;
+//     d_volume[out_idx] = sum;
+
+// }
 __global__ void shift_and_sum_kernel(const Vec3f* d_images,  // [patch_area][n_rows][n_cols]
                           Vec3f* d_volume,        // [num_depth_plane][n_rows][n_cols]
                           int n_rows, int n_cols, int patch_size,
-                          const float* d_depth, const int num_depth_plane, float pixel_size, int s,//the diameter of the lens
-                            int f )//the focal length
+                          const float* d_alpha, const int num_depth_plane)
 {
     int u = blockIdx.y * blockDim.y + threadIdx.y;//row
     int v = blockIdx.x * blockDim.x + threadIdx.x;//col
@@ -209,8 +276,12 @@ __global__ void shift_and_sum_kernel(const Vec3f* d_images,  // [patch_area][n_r
     int mid_idx = (patch_size - 1) * 0.5f;
     int patch_area = patch_size * patch_size;
     Vec3f sum = {0, 0, 0};
-    float depth = d_depth[z];
-    float factor = s * (depth / ((float)f + depth)) / pixel_size;
+    float alpha = d_alpha[z];
+    float factor;
+    if(alpha == 0)
+        factor = -1;
+    else
+        factor = 1 - 1 / alpha;
     float radius = mid_idx * 0.75f ;
     int count = 0;
     for (int idx = 0; idx < patch_area; idx++) {
@@ -260,24 +331,37 @@ __global__ void brenner_kernel(const Vec3f* d_volume, float* d_brenner_scores, i
     float brenner_val = 0.0f;
     int idx = z*n_rows*n_cols + u*n_cols + v;
     Vec3f color = d_volume[idx];
-    float center = (color.x * 0.299f + color.y * 0.587f + color.z * 0.114f) * 255.0f;
+    float center = (color.x * 0.299f + color.y * 0.587f + color.z * 0.114f) * 255.0f ;
     if(u + m < n_rows){
         Vec3f down_color = d_volume[z * n_rows * n_cols + (u + m) * n_cols + v];
         float down = down_color.x * 0.299f + down_color.y * 0.587f + down_color.z * 0.114f;
         brenner_val += (center - down) * (center - down) ;
+    }
+    if(u - m >= 0) {
+        Vec3f up_color = d_volume[z*n_rows*n_cols + (u - m)*n_cols + v];
+        float up = up_color.x * 0.299f + up_color.y * 0.587f + up_color.z * 0.114f;
+        brenner_val += (center - up) * (center - up);
     }
     if(v + m < n_cols){
         Vec3f right_color = d_volume[z * n_rows * n_cols + u  * n_cols + (v + m)];
         float right = right_color.x * 0.299f + right_color.y * 0.587f + right_color.z * 0.114f;
         brenner_val += (center - right) * (center - right);
     }
+     if(v - m >= 0) {
+        Vec3f left_color = d_volume[z * n_rows * n_cols + u * n_cols + (v - m)];
+        float left = left_color.x * 0.299f + left_color.y * 0.587f + left_color.z * 0.114f;
+        brenner_val += (center - left) * (center - left);
+    }
     atomicAdd(&d_brenner_scores[z], brenner_val);
+   
 }
 
 
 float GPUProcessor::imageprocess_cuda(
-    const cv::Mat& image_mla, const vector<float>& depth_range                // CV_8UC3      
+    const cv::Mat& image_mla               // CV_8UC3      
 ){
+    
+    
       //------------------
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -319,25 +403,24 @@ float GPUProcessor::imageprocess_cuda(
     //generate depth_range
     // cudaMemcpy(d_depth, depth_range.data(),
     // sizeof(float) * num_depth_plane, cudaMemcpyHostToDevice);
-    cudaMemcpyAsync(d_depth, depth_range.data(),
-                sizeof(float) * num_depth_plane,
-                cudaMemcpyHostToDevice, m_stream);
-    cudaMemsetAsync(d_brenner_scores, 0, sizeof(float) * num_depth_plane, m_stream);
-
+   
+    
     shift_and_sum_kernel<<<grid, block, 0, m_stream>>>(d_images, d_volume,
-    n_rows, n_cols, patch_size, 
-    d_depth, num_depth_plane, pixel_size, s, f);
+        n_rows, n_cols, patch_size, 
+        d_alpha, num_depth_plane);
     cudaError_t err_shift = cudaGetLastError();
     if(err_shift != cudaSuccess) printf("shift_Kernel error: %s\n", cudaGetErrorString(err_shift));
     cudaDeviceSynchronize();
-    
-    
-    int m = 4;
+        
+        
+    int m = 2;
+    cudaMemsetAsync(d_brenner_scores, 0, sizeof(float) * num_depth_plane, m_stream);
     brenner_kernel<<<grid, block, 0, m_stream>>>(d_volume, d_brenner_scores, m, n_rows, n_cols, num_depth_plane);
     cudaError_t err_brenner = cudaGetLastError();
     if(err_brenner != cudaSuccess) printf("brenner_Kernel error: %s\n", cudaGetErrorString(err_brenner));
     cudaDeviceSynchronize();
     
+        
     std::vector<float> h_brenner_scores(num_depth_plane);
     // cudaMemcpy(h_brenner_scores.data(), d_brenner_scores,
     // h_brenner_scores.size() * sizeof(float),
@@ -348,14 +431,14 @@ float GPUProcessor::imageprocess_cuda(
     
 
     for(int i = 0; i<num_depth_plane;i++){
-        cout<<h_brenner_scores[i]<<","<<depth_range[i]<<endl;
+        cout<<h_brenner_scores[i]<<","<<alpha_range[i]<<endl;
         
     }
    
    
     auto it = std::max_element(h_brenner_scores.begin(), h_brenner_scores.end());
     int max_idx = std::distance(h_brenner_scores.begin(), it);
-    float z_coarse = depth_range[max_idx];
+    float z_coarse = alpha_range[max_idx];
     float max_score = *it;
     float min_score = *std::min_element(h_brenner_scores.begin(), h_brenner_scores.end());
     cout<<"coarse_best:"<<z_coarse<<", score = "<<max_score<<endl;
@@ -367,13 +450,13 @@ float GPUProcessor::imageprocess_cuda(
 
     }else{
        
-        float fine_step = step * 0.2f;//fine_step (0.9-1)
+        float fine_step = step * 0.4f;//fine_step (0.9-1)
         cout<<"fine_step"<<fine_step<<endl;
        
         z_best = find_bestvalue(z_coarse, fine_step);
     }
 
-    generate_best_view(z_best);
+    generate_best_view(z_best, max_score);
 
 
 
@@ -509,8 +592,7 @@ float GPUProcessor::quadratic_fit_points(const std::vector<float>& scores, const
 
     for (int i = 0; i < n; ++i) {
         double normalized = (scores[i] - min_score) / range;
-        double weight = pow(normalized, 4.0);  
-        weight = max(weight, 0.005);
+        double weight = 0.02 + pow(normalized, 2.0);
         cout<<"weight:"<<weight<<endl;
         double x = static_cast<double>(depths[i]);
         double y = static_cast<double>(scores[i]);
@@ -558,44 +640,45 @@ float GPUProcessor::quadratic_fit_points(const std::vector<float>& scores, const
     double B = Db / D;
     double C = (sum_wy - A * sum_wx2 - B * sum_wx) / sum_w;
     
-    float z_best = -B / (2*A);
-    double y_best = A * z_best * z_best + B * z_best + C;
-    cout<<"z_best"<<z_best<<"y_best"<<y_best<<endl;
-    return z_best;
-}
-
-float GPUProcessor::parabolic_peak_refine(const vector<float>& brenner_scores, const vector<float>& depth){
-    auto max = std::max_element(brenner_scores.begin(), brenner_scores.end());
-    int max_idx = std::distance(brenner_scores.begin(), max);
-    if(max_idx == 0 || max_idx == brenner_scores.size() - 1){
-        cout<<"center is not the maximun"<<endl;
-        return depth[max_idx];
-    }
-    float x1 = depth[max_idx - 1];
-    float x2 = depth[max_idx];
-    float x3 = depth[max_idx + 1];
-    float y1 = brenner_scores[max_idx - 1];
-    float y2 = brenner_scores[max_idx];
-    float y3 = brenner_scores[max_idx + 1];
-    float numerator = y1 - y3;
-    float denominator = 2 * (y1 - 2*y2 + y3);
-    float curvature = fabs(y1 - 2 * y2 + y3) / y2;
+    float best = -B / (2*A);
+    double y_best = A * best * best + B * best + C;
     
-    if(curvature < 0.0001){
-        cout<<"curvature is too small"<<endl;
-        return depth[max_idx];
-    }
-    if(denominator == 0){
-        cout<<"fitting error"<<endl;
-        return depth[max_idx];
-    }
-    cout<<"curvature"<<curvature<<endl;
-    float z_best = x2 + numerator / denominator * (x3 - x2);
-    float y_best = y2 - (numerator * numerator) / (8 * (y1 - 2*y2 + y3));
-    cout<<"z_best"<<z_best<<"y_best"<<y_best<<endl;
-
-    return z_best;
+    cout<<"best"<<best<<"y_best"<<y_best<<endl;
+    return best;
 }
+
+// float GPUProcessor::parabolic_peak_refine(const vector<float>& brenner_scores, const vector<float>& depth){
+//     auto max = std::max_element(brenner_scores.begin(), brenner_scores.end());
+//     int max_idx = std::distance(brenner_scores.begin(), max);
+//     if(max_idx == 0 || max_idx == brenner_scores.size() - 1){
+//         cout<<"center is not the maximun"<<endl;
+//         return depth[max_idx];
+//     }
+//     float x1 = depth[max_idx - 1];
+//     float x2 = depth[max_idx];
+//     float x3 = depth[max_idx + 1];
+//     float y1 = brenner_scores[max_idx - 1];
+//     float y2 = brenner_scores[max_idx];
+//     float y3 = brenner_scores[max_idx + 1];
+//     float numerator = y1 - y3;
+//     float denominator = 2 * (y1 - 2*y2 + y3);
+//     float curvature = fabs(y1 - 2 * y2 + y3) / y2;
+    
+//     if(curvature < 0.0001){
+//         cout<<"curvature is too small"<<endl;
+//         return depth[max_idx];
+//     }
+//     if(denominator == 0){
+//         cout<<"fitting error"<<endl;
+//         return depth[max_idx];
+//     }
+//     cout<<"curvature"<<curvature<<endl;
+//     float z_best = x2 + numerator / denominator * (x3 - x2);
+//     float y_best = y2 - (numerator * numerator) / (8 * (y1 - 2*y2 + y3));
+//     cout<<"z_best"<<z_best<<"y_best"<<y_best<<endl;
+
+//     return z_best;
+// }
 
 float GPUProcessor::find_bestvalue(float z_coarse, const float& fine_step){
     //second time fitting curve and generate the best depth image
@@ -610,20 +693,21 @@ float GPUProcessor::find_bestvalue(float z_coarse, const float& fine_step){
     vector<float> depth_zn;
     depth_zn.assign({z_coarse - 3*fine_step, z_coarse - 2*fine_step,z_coarse - fine_step, z_coarse, z_coarse + fine_step, z_coarse + 2 * fine_step, z_coarse + 3 * fine_step});
     // depth_zn.assign({z_coarse - fine_step, z_coarse, z_coarse + fine_step});
-    cudaMemcpyAsync(d_depth_n, depth_zn.data(),
+    cudaMemcpyAsync(d_alpha_n, depth_zn.data(),
                 sizeof(float) * num_plane,
                 cudaMemcpyHostToDevice, m_stream);
-    cudaMemsetAsync(d_brenner_scores_n, 0, sizeof(float) * num_plane, m_stream);
+    
 
     shift_and_sum_kernel<<<grid, block, 0, m_stream>>>(d_images, d_volume_n,
     n_rows, n_cols, patch_size, 
-    d_depth_n, num_plane, pixel_size, s, f);
+    d_alpha_n, num_plane);
     cudaError_t err_shift = cudaGetLastError();
     if(err_shift != cudaSuccess) printf("shift_Kernel error: %s\n", cudaGetErrorString(err_shift));
     cudaDeviceSynchronize();
     
     
-    int m = 4;
+    int m = 2;
+    cudaMemsetAsync(d_brenner_scores_n, 0, sizeof(float) * num_plane, m_stream);
     brenner_kernel<<<grid, block, 0, m_stream>>>(d_volume_n, d_brenner_scores_n, m, n_rows, n_cols, num_plane);
     cudaError_t err_brenner = cudaGetLastError();
     if(err_brenner != cudaSuccess) printf("brenner_Kernel error: %s\n", cudaGetErrorString(err_brenner));
@@ -636,26 +720,30 @@ float GPUProcessor::find_bestvalue(float z_coarse, const float& fine_step){
     cudaDeviceSynchronize(); 
     
     
-    for(int i= 0; i < num_plane; i++)
-        cout<<h_brenner_scores_n[i]<<","<<depth_zn[i]<<endl;
- 
-    float z_refined  = quadratic_fit_points(h_brenner_scores_n, depth_zn);
+    vector<float> step_range(num_plane);
+    for(int i= 0; i < num_plane; i++){
+        step_range[i] = (depth_zn[i] - z_coarse) / fine_step;
+        cout<<h_brenner_scores_n[i]<<","<<depth_zn[i]<<",step,"<< step_range[i]<<endl;
+    }
+
     
-    
+    float step_best  = quadratic_fit_points(h_brenner_scores_n, step_range);
+    float z_refined = z_coarse + step_best * fine_step;
+    cout <<"refined alpha"<< z_refined << endl;
     return z_refined;
     
  
     
 }
-void GPUProcessor::generate_best_view(const float& z_best){
+void GPUProcessor::generate_best_view(const float& z_best, float& score){
     dim3 block(16, 16);
     dim3 grid_1((n_cols+15)/16, (n_rows+15)/16, 1);
-    cudaMemcpyAsync(d_depth_1, &z_best,
+    cudaMemcpyAsync(d_alpha_1, &z_best,
             sizeof(float) ,
             cudaMemcpyHostToDevice, m_stream);
     shift_and_sum_kernel<<<grid_1, block, 0, m_stream>>>(d_images, d_volume_1,
     n_rows, n_cols, patch_size, 
-    d_depth_1, 1, pixel_size, s, f);
+    d_alpha_1, 1);
     cudaError_t err_shift_1 = cudaGetLastError();
     if(err_shift_1 != cudaSuccess) printf("shift_Kernel error: %s\n", cudaGetErrorString(err_shift_1));
     cudaDeviceSynchronize();
@@ -679,30 +767,35 @@ void GPUProcessor::generate_best_view(const float& z_best){
     // cv::imwrite("shift_and_sum_larger.bmp", img8_large);
     // // // 显示
     cv::Point org((img8_large.cols - 200), 150);
-    cv::putText(img8_large, to_string(z_best), org, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255,0,0), 1, 1);
+    cv::Point org_1((img8_large.cols - 200), 200);
+    cv::Point org_2((img8_large.cols - 200), 50);
+    float displacement = 790.13 * (1 - z_best)/400 *1000;
+    cv::putText(img8_large, to_string(displacement), org, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255,0,0), 1, 1);
+    cv::putText(img8_large, to_string(z_best), org_1, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(0,255,0), 1, 1);
+    // cv::putText(img8_large, to_string(score), org_2, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(0,0,255), 1, 1);
     imshow("Volume Slice", img8_large);
     imshow("Volume Slice_original", img8);
     cv::waitKey(1);
 }
-float GPUProcessor::Equation_solving( vector<float>& y, const vector<float>& x){
-     // 三元一次方程求 A,B,C
+// float GPUProcessor::Equation_solving( vector<float>& y, const vector<float>& x){
+//      // 三元一次方程求 A,B,C
    
-    for(auto &y_idx : y){
-       if(fabs(y_idx) > 1e-6f)
-            y_idx = 1 / y_idx;
-        else
-            y_idx = 0;
-    }
+//     for(auto &y_idx : y){
+//        if(fabs(y_idx) > 1e-6f)
+//             y_idx = 1 / y_idx;
+//         else
+//             y_idx = 0;
+//     }
 
-    double A = ((y[2]-y[0]) - ((y[1]-y[0])*(x[2]-x[0])/(x[1]-x[0]))) /
-               ((x[2]*x[2]-x[0]*x[0]) - ((x[1]*x[1]-x[0]*x[0])*(x[2]-x[0])/(x[1]-x[0])));
-    double B = (y[1]-y[0] - A*(x[1]*x[1]-x[0]*x[0])) / (x[1]-x[0]);
-    double C = y[0] - A*x[0]*x[0] - B*x[0];
+//     double A = ((y[2]-y[0]) - ((y[1]-y[0])*(x[2]-x[0])/(x[1]-x[0]))) /
+//                ((x[2]*x[2]-x[0]*x[0]) - ((x[1]*x[1]-x[0]*x[0])*(x[2]-x[0])/(x[1]-x[0])));
+//     double B = (y[1]-y[0] - A*(x[1]*x[1]-x[0]*x[0])) / (x[1]-x[0]);
+//     double C = y[0] - A*x[0]*x[0] - B*x[0];
 
-    float z0 = -B / (2*A);          // 中心点
-    float y0 = A*z0*z0 + B*z0 + C;  // 极值
-    return z0;
-}
+//     float z0 = -B / (2*A);          // 中心点
+//     float y0 = A*z0*z0 + B*z0 + C;  // 极值
+//     return z0;
+// }
 vector<cv::Vec3f> GPUProcessor::currentimage(){
     int threads = 256;
     int total_threads = n_rows * n_cols ;
@@ -722,10 +815,70 @@ vector<cv::Vec3f> GPUProcessor::currentimage(){
     h_image.size() * sizeof(cv::Vec3f),
     cudaMemcpyDeviceToHost, m_stream);
     cudaDeviceSynchronize();
-
+    
     return h_image;
 }
 
+// void GPUProcessor::test(){
+//     dim3 block(16, 16);
+//     dim3 grid((n_cols+15)/16, (n_rows+15)/16, num_depth_plane);
+//     cv::Mat black_image(image_rows, image_cols, CV_8UC3, cv::Scalar(0, 0, 0));
+//     cuda_preprocess(black_image);
+//     int m = 2;
+//     cudaMemset(d_brenner_scores, 0, num_depth_plane * sizeof(float));
+//     brenner_kernel<<<grid, block, 0, m_stream>>>(d_imagefloat, d_brenner_scores, m, n_rows, n_cols, num_depth_plane);
+//     cudaError_t err_brenner = cudaGetLastError();
+//     if(err_brenner != cudaSuccess) printf("brenner_Kernel error: %s\n", cudaGetErrorString(err_brenner));
+//     cudaDeviceSynchronize();
+    
+//     std::vector<float> h_brenner_scores2(num_depth_plane);
+//     cudaMemcpyAsync(h_brenner_scores2.data(), d_brenner_scores,
+//                 sizeof(float) * num_depth_plane,
+//                 cudaMemcpyDeviceToHost, m_stream);
+//     for(int i = 0; i < num_depth_plane; i++) {
+//         cout << "Depth " << i << ": " << h_brenner_scores2[i] << endl;
+//     }
+//     cv::Mat checkborad(image_rows, image_cols, CV_8UC3);
+//     for(int i = 0; i < image_rows; i++) {
+//         for(int j = 0; j < image_cols; j++) {
+//             cv::Scalar color = ((i/10 + j/10) % 2 == 0) ? cv::Scalar(255,255,255) : cv::Scalar(0,0,0);
+//             checkborad.at<cv::Vec3b>(i,j) = cv::Vec3b(color[0], color[1], color[2]);
+//         }
+//     }
+//     cuda_preprocess(checkborad);
+//     cudaMemset(d_brenner_scores, 0, num_depth_plane * sizeof(float));
+//     brenner_kernel<<<grid, block, 0, m_stream>>>(d_imagefloat, d_brenner_scores, m, n_rows, n_cols, num_depth_plane);
+   
+   
+    
+//     std::vector<float> h_brenner_scores3(num_depth_plane);
+//     cudaMemcpyAsync(h_brenner_scores3.data(), d_brenner_scores,
+//                 sizeof(float) * num_depth_plane,
+//                 cudaMemcpyDeviceToHost, m_stream);
+//     for(int i = 0; i < num_depth_plane; i++) {
+//         cout << "Depth2 " << i << ": " << h_brenner_scores3[i] << endl;
+//     }
+//     cudaMemset(d_brenner_scores, 0, num_depth_plane * sizeof(float));
+    
+//     cv::Mat gradient(image_rows, image_cols, CV_8UC3);
+//     for(int i = 0; i < image_rows; i++) {
+//         for(int j = 0; j < image_cols; j++) {
+//             int val = (j * 255) / image_cols;
+//             gradient.at<cv::Vec3b>(i,j) = cv::Vec3b(val, val, val);
+//         }
+//     }
+//     cuda_preprocess(gradient);
+    
+//     brenner_kernel<<<grid, block, 0, m_stream>>>(d_imagefloat, d_brenner_scores, m, n_rows, n_cols, num_depth_plane);
+//     cudaStreamSynchronize(m_stream);
+    
+//     std::vector<float> scores_gradient(num_depth_plane);
+//     cudaMemcpy(scores_gradient.data(), d_brenner_scores, sizeof(float) * num_depth_plane, cudaMemcpyDeviceToHost);
+    
+//     for(int i = 0; i < num_depth_plane; i++) {
+//         cout << "Depth3 " << i << ": " << scores_gradient[i] << " (should be moderate)" << endl;
+//     }
+// }
 void GPUProcessor::prepare_data(){
     rows_flat.clear();
     rows_offsets.clear();
