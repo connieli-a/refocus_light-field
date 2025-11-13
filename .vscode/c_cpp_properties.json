@@ -3,14 +3,14 @@
         {
             "name": "Win32",
             "includePath": [
+                "${workspaceFolder}/refocus_cmake/**",
                 "${workspaceFolder}/refocus_cmake/include/**",
-                "G:/program_files/vcpkg/installed/x64-windows/include",
-                "G:/program_files/vcpkg/installed/x64-windows/include/opencv4",
+                "C:/app/opencv-4.10.0/install/include",
                 "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6/include",
-                "G:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/include",
-                "G:/Program Files/Basler/pylon 5/Development/include"
+                "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.42.34433/include",
+                "C:/Program Files/Basler/pylon/Development/include"
             ],
-            "compilerPath": "G://Program Files//Microsoft Visual Studio//2022//Community//VC//Tools//MSVC//14.44.35207//bin//Hostx64//x64//cl.exe",
+            "compilerPath": "C://Program Files//Microsoft Visual Studio//2022//Community//VC//Tools//MSVC//14.42.34433//bin//Hostx64//x64//cl.exe",
             "windowsSdkVersion": "10.0.26100.0",
             "configurationProvider": "ms-vscode.cmake-tools",
             "cStandard": "c17",

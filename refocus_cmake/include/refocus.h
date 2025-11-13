@@ -13,10 +13,11 @@
 #include <omp.h>
 #include <pylon/PylonIncludes.h>
 #include <pylon/BaslerUniversalInstantCamera.h> 
-// #include <opencv2/cudaarithm.hpp>
+#include <Windows.h>
+
+
 // TODO: 在此处引用程序需要的其他标头。
 using namespace std;
-using namespace Pylon;
 using namespace GenApi; // NodeMap / CFloatPtr / CEnumerationPtr
 
 
@@ -36,6 +37,30 @@ struct Result
     float brenner;
     float z;
 };
+struct FrameBuffer
+{
+    cv::Mat bufferA, bufferB;
+    atomic<cv::Mat*> writeBuf{&bufferA};
+    atomic<cv::Mat*> readBuf{&bufferB};
+    atomic<bool> newFrame{false};
+    mutex mtx;
+    condition_variable cv;
+};
+struct ResultBuffer
+{
+    std::pair<vector<cv::Vec3f>, float> bufA, bufB;
+    atomic<std::pair<vector<cv::Vec3f>, float>*> writeBuf{&bufA};
+    atomic<std::pair<vector<cv::Vec3f>, float>*> readBuf{&bufB};
+    atomic<bool> newResult{false};
+    mutex mtx;
+    condition_variable cv;
+};
+struct DisplayBuffer {
+    std::mutex mtx;
+    cv::Mat img;
+    cv::Mat img_large;
+    bool hasNew = false;
+} ;
 
 class ImageProcessor {
     public:
@@ -45,10 +70,10 @@ class ImageProcessor {
 
     
     // pure virtual functions, only defining interfaces
-    virtual float imageprocess_cuda(
+    virtual void imageprocess_cuda(
     const cv::Mat& image_mla) = 0;         // CV_8UC3
-                        
-    virtual vector<cv::Vec3f> currentimage() = 0;
+    virtual void show_image(std::pair<vector<cv::Vec3f>, float> result_frame) = 0;                    
+    // virtual vector<cv::Vec3f> currentimage() = 0;
     
     virtual int get_col() const = 0;
     virtual int get_row() const = 0;
@@ -59,7 +84,19 @@ class ImageProcessor {
     
 };
 
+extern FrameBuffer frameBuffer;
+extern ResultBuffer resultBuffer;
+extern std::atomic<bool> running;
 
+extern DisplayBuffer displayBuffer;
+extern int rangex1;
+extern int rangex2;
+extern int rangey1;
+extern int rangey2;
+extern cv::Mat image_mla_roi;
+void gpuThread(std::shared_ptr<ImageProcessor> refocus_pointer);
+void showThread(std::shared_ptr<ImageProcessor> refocus_pointer);
+void cameraThread();
 
 
 

@@ -1,51 +1,52 @@
 #include "include/refocus.h"
 #include <iostream>
-
-
+#include "include/ADControl.h"
+#include "include/DAControl.h"
 
 
 int main(){  
    
-    
+    // auto start = chrono::high_resolution_clock::now();
     //Initalization
-    cv::Mat image_rgb;
+  
+    
+    int Rmin = 4, Rmax = 10;//Rmin 15 Rmax 35
+    
     cv::Mat image_gray;
-    int Rmin = 15, Rmax = 35;
-    //set the range
-    int rangex1 = 900, rangex2 = 3000;//960 2880
-    int rangey1 = 200, rangey2 = 1800;//540 1620
-    cv::Rect roi(rangex1, rangey1, (rangex2 - rangex1), (rangey2 - rangey1));
-    int patch_size = 64;
-    float tolerance = 15;
+    // cv::Rect roi(rangex1, rangey1, (rangex2 - rangex1), (rangey2 - rangey1));
+    int patch_size = 18;//64
+    float tolerance = 4;//15
     int num_depth_plane = 5;
     int screenWidth = 1536; // 屏幕宽
     int screenHeight = 864; // 屏幕高
 
 
-
- 
-    
-    cv::Mat image = cv::imread("data/Image_2025-09-16.bmp");//be cutted
+    cv::Mat image = cv::imread("data/Image__2025-11-12__17-27-20.bmp", cv::IMREAD_UNCHANGED);//be cutted
     cv::Mat image_mla;
-    cv::Mat image_mla_roi;
+    cv::Mat frameshow;
+    cv::Mat frameshow_large;
+    
     if (image.empty()) {
-        //throw runtime_error("No image, please check the source");
-        cout << "no image, please check." << endl;
+        throw runtime_error("No image, please check the source");
+        // cout << "no image, please check." << endl;
         return -1;
     }
-    cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+    // std::cout << "image type: " << image.type() << std::endl;
+    if(image.type() != CV_8UC1){
+        cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+    }else{
+        image_gray = image;
+    }
+    
     // cv::Mat image_gray_roi = image_gray(roi);
     //hough transform
     vector<cv::Vec3f> circles;
-    HoughCircles(image_gray, circles, cv::HOUGH_GRADIENT, 1.2, 29, 100, 30, Rmin, Rmax);
-
+    HoughCircles(image_gray, circles, cv::HOUGH_GRADIENT, 1.1, 9, 100, 20, Rmin, Rmax);
+    // HoughCircles(image_gray, circles, cv::HOUGH_GRADIENT, 1.2, 29, 100, 30, Rmin, Rmax)；
 
     if(!circles.empty()){
-        
-        
       
         //orgnaize the array
-        
         vector<CircleInf> circleList;
         for (int i = 0; i < circles.size(); i++)
         {
@@ -59,137 +60,81 @@ int main(){
             circleList.push_back({ x, y, radius });
             
         }
+
         // for (const auto& c : circleList)
         // {
         //     cv::Point center(cvRound(c.x), cvRound(c.y));
         //     int radius = cvRound(c.radius);
 
-        //     cv::circle(image, center, radius, cv::Scalar(0, 255, 0), 2); // 绿色圆
-        //     cv::circle(image, center, 2, cv::Scalar(0, 0, 255), -1);     // 红色圆心
+        //     cv::circle(image_gray, center, radius, cv::Scalar(0, 255, 0), 1); // 绿色圆
+        //     cv::circle(image_gray, center, 2, cv::Scalar(0, 0, 255), -1);     // 红色圆心
         // }
-        // cv::imshow("circle", image);
+        // cv::imshow("circle", image_gray);
+        // cv::waitKey(0);
         //create an instance
         //default value-->device:0, cuda graph: true
         std:: shared_ptr<ImageProcessor> refocus_pointer = ImageProcessor::create(circleList, tolerance, patch_size, rangey2 - rangey1, rangex2 - rangex1);
         int col = refocus_pointer->get_col();
         int row = refocus_pointer->get_row();
-        
-        
-        PylonInitialize();
-        try{
-             //open camera
-            CInstantCamera camera(CTlFactory::GetInstance().CreateFirstDevice());
-            camera.Open();
-            
-            INodeMap& nodemap = camera.GetNodeMap();
-            //exposure time
-            CFloatPtr exposureTime(nodemap.GetNode("ExposureTime"));
-            if(IsWritable(exposureTime))
-            exposureTime->SetValue(7000.0);//µs
-            CIntegerPtr width(nodemap.GetNode("Width"));
-            CIntegerPtr height(nodemap.GetNode("Height"));
-            CIntegerPtr offsetx(nodemap.GetNode("OffsetX"));
-            CIntegerPtr offsety(nodemap.GetNode("OffsetY"));
-            CEnumerationPtr balancesector(nodemap.GetNode("BalanceWhiteAuto"));
-            CEnumerationPtr balanceRatioSelector(nodemap.GetNode("BalanceRatioSelector"));
-            CFloatPtr balanceRatio(nodemap.GetNode("BalanceRatio"));
-            if(IsWritable(width)) width->SetValue(rangex2 - rangex1);
-            if(IsWritable(height)) height->SetValue(rangey2 - rangey1);
-            if(IsWritable(offsetx)) offsetx->SetValue(rangex1);
-            if(IsWritable(offsety)) offsety->SetValue(rangey1);
-            if(IsWritable(balancesector)) balancesector->FromString("Off");
-            if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Red");
-            if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.0);
-            if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Green");
-            if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.0);
-            if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Blue");
-            if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.0);
+        // cv::Mat frameshow(row, col, CV_8UC3, cv::Scalar(255,255,255));
+        // cv::Mat frameshow_large(row * 10, col * 10, CV_8UC3, cv::Scalar(255,255,255));
+   
+        Pylon::PylonInitialize();
+       
+        std::thread t_gpu(gpuThread, refocus_pointer);
+        std::thread t_cam(cameraThread);
+        std::thread t_show(showThread, refocus_pointer);
+        SetThreadPriority(t_gpu.native_handle(), THREAD_PRIORITY_HIGHEST);
+        SetThreadPriority(t_cam.native_handle(), THREAD_PRIORITY_TIME_CRITICAL);
+        SetThreadPriority(t_show.native_handle(), THREAD_PRIORITY_BELOW_NORMAL);
 
-            camera.StartGrabbing(GrabStrategy_OneByOne);
-            // camera.StartGrabbing(30, GrabStrategy_OneByOne);
-            CGrabResultPtr ptrGrabResult;
-            CPylonImage pylonImage;
-            CImageFormatConverter converter;
-            converter.OutputPixelFormat = PixelType_BGR8packed;
-            while(camera.IsGrabbing()){
-                camera.RetrieveResult(INFINITE, ptrGrabResult, TimeoutHandling_ThrowException);
-                if(ptrGrabResult->GrabSucceeded()){
-                  
-                    auto start = std::chrono::high_resolution_clock::now();
-                    converter.Convert(pylonImage, ptrGrabResult);
-                    
-                    cv::Mat frame(static_cast<int>(ptrGrabResult->GetHeight()), static_cast<int>(ptrGrabResult->GetWidth()), CV_8UC3, (uint8_t*)pylonImage.GetBuffer());
-                   
-                    double scaleX = screenWidth / double(frame.cols);
-                    double scaleY = screenHeight / double(frame.rows);
-                    double scale = min(scaleX, scaleY); // 保证完整显示
-                    cv::Mat display;
-                    
-                    cv::resize(frame, display, cv::Size(), scale, scale); // 使用统一缩放比例
-                    cv::namedWindow("Camera", cv::WINDOW_NORMAL);
-                    cv::imshow("Camera", display);
-                    // imwrite("Camera.bmp",display);
-                    if (cv::waitKey(1) == 27) // ESC 退出
-                        break;
-
-                    // image_mla = cv::imread("data/original_20250617_180038.bmp");
-                    // image_mla_roi = image_mla(roi).clone();
-                    image_mla_roi = frame.clone();
-                    if (image_mla_roi.empty()) {
-                        std::cerr << "ROI is empty!" << std::endl;
-                    }
-                   
-        
-                    float z_alpha = refocus_pointer->imageprocess_cuda(image_mla_roi);
-                    float displacement = 790.13 * (1 - z_alpha)/400;
-                    cout<<"best alpha: "<<z_alpha<<endl;
-                    cout<<"best postion value:" << displacement <<endl;
-                    vector<cv::Vec3f> volume = refocus_pointer->currentimage();
-                    // for (int u = 0; u < row; ++u) {
-                    //     cv::Vec3f* ptr = img.ptr<cv::Vec3f>(u);
-                    //     for (int v = 0; v < col; ++v) {
-                    //         int idx =  u * col + v; 
-                    //         ptr[v] = volume[idx];
-                            
-                    //     }
-                    // }
-                    cv::Mat img(row, col, CV_32FC3, volume.data());
-                    cv::Mat img8, img8_large;
-                    img.convertTo(img8, CV_8UC3, 255.0);
-                    cv::resize(img8, img8_large, cv::Size(), 10.0 ,10.0, cv::INTER_NEAREST);
-                    // 显示
-                    imshow("central view ", img8);
-                    imshow("central view_large", img8_large);
-                    // imwrite("current imagez0.bmp",img8);
-                    // imwrite("current imagez0_large.bmp", img8_large);
-                    // if (cv::waitKey(1) == 27) // ESC 退出
-                    // break;
-                    
-                    //the part of automatic stage control
-                    //code
-                    
            
-
-                    auto end = chrono::high_resolution_clock::now();
-                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-                    cout<<"the running time of imageprocess_cuda + image_display :"<< elapsed.count()<<"ms"<<endl;
-                    int interval_ms = 100;  
-                    if(elapsed.count() < interval_ms){
-                        std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms - elapsed.count()));
-                    }
-                  
-
-                }else{
-                    cout<<"can not catch the camera successfully"<<endl;
+        while(running){
+            
+            bool has = false;
+            {
+                std::lock_guard<std::mutex> dl(displayBuffer.mtx);
+                if(displayBuffer.hasNew){
+                    frameshow_large = std::move(displayBuffer.img_large);
+                    frameshow = std::move(displayBuffer.img);
+                    displayBuffer.hasNew = false;
+                    has = true;
                 }
             }
-            camera.StopGrabbing();
-            camera.Close();
+            if(has){
+                if(!frameshow_large.empty()){
+                    cv::imshow("Volume Slice", frameshow_large);
+                }
+                if(!frameshow.empty()){
+                    cv::imshow("Volume Slice_original", frameshow);
+                }
+            }
+            if (cv::waitKey(1) == 27) // ESC 退出
+            {
+                running = false;
+                break;
+            }
+            
+           
+            
         }
-        catch(const GenericException &e){
-            std::cerr<<"An exception occurued:"<<e.GetDescription()<<std::endl;
-        } 
-        PylonTerminate();   
+     
+    
+        
+                
+    
+        
+        frameBuffer.cv.notify_all();
+        resultBuffer.cv.notify_all();
+        t_gpu.join();
+        t_cam.join();
+        t_show.join();
+          
+        Pylon::PylonTerminate();   
+        cv::destroyAllWindows();
+        // auto end = chrono::high_resolution_clock::now();
+        // auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        // cout<<"10 times the running time of imageprocess_cuda + image_display :"<< elapsed.count()<<"microseconds"<<endl;
             //realtime read the image
             // image_mla = cv::imread("data/original_20250617_180038.bmp");
             
@@ -278,6 +223,8 @@ int main(){
         // cv::waitKey(0);
         // cv::destroyAllWindows();
 
+    }else{
+        cout<<"no circle detected"<<endl;
     }
 
  

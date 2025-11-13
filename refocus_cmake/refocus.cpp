@@ -3,6 +3,7 @@
 
 #include <iostream>
 
+
 //  * @param device 使用するGPUのID (デフォルトは0)
 //  * @param useGraph CUDA Graphを使用するかどうか (デフォルトはtrue)
 //  * @return ImageProcessorのインスタンス
@@ -30,36 +31,163 @@ std::shared_ptr<ImageProcessor> ImageProcessor::create(const vector<CircleInf>& 
 }
 
 
+void gpuThread(std::shared_ptr<ImageProcessor> refocus_pointer){
+    while(running){
+        std::unique_lock<mutex> lock(frameBuffer.mtx);
+        frameBuffer.cv.wait(lock, []{return frameBuffer.newFrame || !running;});
+        if(!running)
+            break;
+        frameBuffer.newFrame = false;
+        lock.unlock();
+        cout<<"runn  the image process"<<endl;
+        // auto start = chrono::high_resolution_clock::now();
+        cv::Mat* image_mla = frameBuffer.readBuf.load();
+        refocus_pointer->imageprocess_cuda(*image_mla);
+        //  auto end = chrono::high_resolution_clock::now();
+        // auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        // cout<<"show process"<< elapsed.count()<<"microseconds"<<endl;
+       
+    }
+   
+}
 
-
-  
-// void generate_disparity_table(const int num_depth_plane, const int start, const int end, const int patch_size, vector<float>& disparity_x_flat, vector<float>& disparity_y_flat){
-//     int mid_idx = patch_size / 2;
-//     float pixel_size = 2.0;
-//     int s = 125;//the diameter of the lens
-//     int f = 2500;// the focal length of the lens
-//     vector<float> depth_range;
+void showThread(std::shared_ptr<ImageProcessor> refocus_pointer){
+    while(running){
+        std::unique_lock<std::mutex> lock(resultBuffer.mtx);
+        resultBuffer.cv.wait(lock, []{return resultBuffer.newResult || !running; });
+        if(!running) break;
+        resultBuffer.newResult = false;
+        lock.unlock();
+        auto start = chrono::high_resolution_clock::now();
+        cout<<"run the show process"<<endl;
+        auto* rBuf = resultBuffer.readBuf.load();
+        refocus_pointer->show_image(*rBuf);
+        auto end = chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        cout<<"show process: "<< elapsed.count()<<"microseconds"<<endl;
+    }
+}
+void GPUProcessor::show_image(std::pair<vector<cv::Vec3f>, float> result_frame){
     
-//     //generate depth_range
-//     if(num_depth_plane == 1)
-//         depth_range.push_back(start);
-//     else{
-//         float step = static_cast<float>(end - start) / static_cast<float>(num_depth_plane - 1);
-//         for (int i = 0; i < num_depth_plane; ++i)
-//         {
-//             /* code */
-//             depth_range.push_back(start + step * i);
-//         }
-//     }
-//     for(int z_idx = 0; z_idx < num_depth_plane; z_idx++){
-//         float z = depth_range[z_idx];
-//         float factor = s * (z / (f + z)) / pixel_size;
-//         for(int h = 0; h < patch_size; h++){
-//             for(int w = 0; w < patch_size; w++){
-//                 int idx = (h * patch_size + w) * num_depth_plane + z_idx;//disparity_x[h][w][z_idx]
-//                 disparity_x_flat[idx] = (w - mid_idx) * factor ;
-//                 disparity_y_flat[idx] = (h - mid_idx) * factor ;
-//             }
-//         }
-//     }
-// }
+    std::vector<cv::Vec3f> localFrame = result_frame.first;
+    float z_best = result_frame.second;
+   
+    cv::Mat img(n_rows, n_cols, CV_32FC3, localFrame.data());
+    
+    cv::Mat img8, img8_large;
+    // cv::Mat img_count = img.clone();
+    // 转为 8-bit 显示
+    img.convertTo(img8, CV_8UC3, 255.0);
+    cv::resize(img8, img8_large, cv::Size(), 10.0 ,10.0,cv::INTER_NEAREST);
+    // std::string filename = folder + "/output"+ std::to_string(i) +".png";
+    // cv::imwrite(filename, img8_large);
+    // cv::imwrite("shift_and_sum_original.bmp", img8);
+    // cv::imwrite("shift_and_sum_larger.bmp", img8_large);
+    // // // 显示
+    cv::Point org((img8_large.cols - 180), 50);
+    cv::Point org_1((img8_large.cols - 180), 150);
+   
+    float displacement = 790.13 * (1 - z_best)/400 *1000;
+    cv::putText(img8_large, to_string(displacement), org, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255,0,0), 1, 1);
+    cv::putText(img8_large, to_string(z_best), org_1, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(0,255,0), 1, 1);
+   
+    
+    {
+        std::lock_guard<std::mutex> dl(displayBuffer.mtx);
+        displayBuffer.img = img8.clone(); // clone 减少共享内存竞态
+        displayBuffer.img_large = img8_large.clone();
+        displayBuffer.hasNew = true;
+       
+    }
+
+}
+void cameraThread(){
+    try{
+        //open camera
+        Pylon::CInstantCamera camera(Pylon::CTlFactory::GetInstance().CreateFirstDevice());
+        camera.Open();
+        
+        INodeMap& nodemap = camera.GetNodeMap();
+        //exposure time
+        CFloatPtr exposureTime(nodemap.GetNode("ExposureTime"));
+        if(IsWritable(exposureTime))
+        exposureTime->SetValue(300.0);//µs 7000
+        CIntegerPtr width(nodemap.GetNode("Width"));
+        CIntegerPtr height(nodemap.GetNode("Height"));
+        CIntegerPtr offsetx(nodemap.GetNode("OffsetX"));
+        CIntegerPtr offsety(nodemap.GetNode("OffsetY"));
+        //color camera
+        CEnumerationPtr balancesector(nodemap.GetNode("BalanceWhiteAuto"));
+        CEnumerationPtr balanceRatioSelector(nodemap.GetNode("BalanceRatioSelector"));
+        CFloatPtr balanceRatio(nodemap.GetNode("BalanceRatio"));
+        if(IsWritable(width)) width->SetValue(rangex2 - rangex1);
+        if(IsWritable(height)) height->SetValue(rangey2 - rangey1);
+        if(IsWritable(offsetx)) offsetx->SetValue(rangex1);
+        if(IsWritable(offsety)) offsety->SetValue(rangey1);
+        if(IsWritable(balancesector)) balancesector->FromString("Off");
+        if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Red");
+        if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.0);
+        if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Green");
+        if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.0);
+        if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Blue");
+        if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.5);
+
+        camera.StartGrabbing(Pylon::GrabStrategy_OneByOne);
+        // camera.StartGrabbing(10, Pylon::GrabStrategy_OneByOne);
+        Pylon::CGrabResultPtr ptrGrabResult;
+        Pylon::CPylonImage pylonImage;
+        Pylon::CImageFormatConverter converter;
+        converter.OutputPixelFormat = Pylon::PixelType_BGR8packed;
+        while(running && camera.IsGrabbing()){
+            cout<<"run the camera grabbing process"<<endl;
+            auto start = chrono::high_resolution_clock::now();
+            camera.RetrieveResult(INFINITE, ptrGrabResult, Pylon::TimeoutHandling_ThrowException);
+            if(ptrGrabResult->GrabSucceeded()){
+                
+                
+                converter.Convert(pylonImage, ptrGrabResult);
+                
+                cv::Mat frame(static_cast<int>(ptrGrabResult->GetHeight()), static_cast<int>(ptrGrabResult->GetWidth()), CV_8UC1, (uint8_t*)pylonImage.GetBuffer());
+                
+                // double scaleX = screenWidth / double(frame.cols);
+                // double scaleY = screenHeight / double(frame.rows);
+                // double scale = min(scaleX, scaleY); // 保证完整显示
+
+
+
+                
+                // cv::Mat display;
+                
+                // cv::resize(frame, display, cv::Size(), scale, scale); // 使用统一缩放比例
+                // cv::namedWindow("Camera", cv::WINDOW_NORMAL);
+                // cv::imshow("Camera", display);
+                // imwrite("Camera.bmp",display);
+                
+                // image_mla = cv::imread("data/original_20250617_180038.bmp");
+                // image_mla_roi = image_mla(roi).clone();
+                
+                image_mla_roi = frame.clone();
+                if (image_mla_roi.empty()) {
+                    std::cerr << "ROI is empty!" << std::endl;
+                }
+                cv::Mat* buf = frameBuffer.writeBuf.load();
+                image_mla_roi.copyTo(*buf);
+                //exchange the reading and writing buffer
+                cv::Mat* oldRead = frameBuffer.readBuf.load();
+                frameBuffer.readBuf.store(buf);
+                frameBuffer.writeBuf.store(oldRead);
+
+                frameBuffer.newFrame = true;
+                frameBuffer.cv.notify_one();
+            }
+            auto end = chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+            cout<<"camera grab process: "<< elapsed.count()<<"microseconds"<<endl;
+        }
+        running = false;
+        camera.StopGrabbing();
+        camera.Close();
+    } catch(const Pylon::GenericException &e){
+        std::cerr<<"An exception occurued:"<<e.GetDescription()<<std::endl;
+        } 
+}

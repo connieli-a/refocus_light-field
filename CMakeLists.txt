@@ -16,7 +16,7 @@ project ("refocus_cmake")
 # Pylon SDK 路径
 list(APPEND CMAKE_PREFIX_PATH $ENV{PYLON_DEV_DIR})
 
-find_package(pylon 10.0.0 REQUIRED)
+find_package(pylon 7.4.0 REQUIRED)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

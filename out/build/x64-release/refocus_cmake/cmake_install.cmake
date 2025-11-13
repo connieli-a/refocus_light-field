@@ -1,8 +1,8 @@
-# Install script for directory: G:/program/cpp/projects/refocus_cmake/refocus_cmake
+# Install script for directory: C:/Users/okulab/connie/program/refocus_light-field/refocus_cmake
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "G:/program/cpp/projects/refocus_cmake/out/install/x64-release")
+  set(CMAKE_INSTALL_PREFIX "C:/Users/okulab/connie/program/refocus_light-field/out/install/x64-release")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -35,6 +35,6 @@ endif()
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
 if(CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "G:/program/cpp/projects/refocus_cmake/out/build/x64-release/refocus_cmake/install_local_manifest.txt"
+  file(WRITE "C:/Users/okulab/connie/program/refocus_light-field/out/build/x64-release/refocus_cmake/install_local_manifest.txt"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()

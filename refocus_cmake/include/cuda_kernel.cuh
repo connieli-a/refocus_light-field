@@ -24,11 +24,11 @@ public:
     GPUProcessor(const vector<CircleInf>& circleList, const float y_tolerance, const int patch_size,  const int image_rows, const int image_cols);
     virtual ~GPUProcessor();
 
-    float imageprocess_cuda(
+    void imageprocess_cuda(
     const cv::Mat& image_mla) override;                    // CV_8UC3
-    vector<cv::Vec3f> currentimage() override;
+    // vector<cv::Vec3f> currentimage() override;
 
-
+    void show_image(std::pair<vector<cv::Vec3f>, float> result_frame) override;    
     int get_col() const override { return n_cols; }
     int get_row() const override { return n_rows; }
 private: 
@@ -38,12 +38,12 @@ private:
     void preprocess(const vector<cv::Vec3f>& circles, vector<CircleInf>& sortedList);
     
    
-    float find_bestvalue(float z0, const float& fine_step);
+    // float find_bestvalue(float z0, const float& fine_step);
     // float Equation_solving( vector<float>& y, const vector<float>& x);
     float quadratic_fit_points(const std::vector<float>& y, const std::vector<float>& x);
     // float parabolic_peak_refine(const vector<float>& brenner_scores, const vector<float>& depth);
     void generate_best_view(const float& z_best, float& score);
-    // void test();
+    
     //--------related CUDA
     
     // int32_t m_device ;
@@ -66,9 +66,9 @@ private:
     Vec3f* d_volume_1 = nullptr;//generate display image
     float* d_alpha_1 = nullptr;
     Vec3f* d_image_1 = nullptr;
-    Vec3f* d_volume_n = nullptr;//estimated algorithm
-    float* d_brenner_scores_n = nullptr;
-    float* d_alpha_n = nullptr;  
+    // Vec3f* d_volume_n = nullptr;//estimated algorithm
+    // float* d_brenner_scores_n = nullptr;
+    // float* d_alpha_n = nullptr;  
 
     int image_rows;
     int image_cols;
@@ -91,10 +91,11 @@ private:
     // float pixel_size = 2.0;
     // int s = 125;//the diameter of the lens micrometer
     // int f = 2500;// the focal length of the lens micrometer
-    int num_plane = 7;
+    // int num_plane = 5;
     vector<float> alpha_range;
-    float start = 0.95;
-    float end = 1.1;
+    float start = 0.85;
+    float end = 1.25;
     float step = static_cast<float>(end - start) / static_cast<float>(num_depth_plane - 1);
   
+    
 };

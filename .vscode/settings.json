@@ -80,7 +80,12 @@
         "xutility": "cpp",
         "__config": "cpp",
         "fstream": "cpp",
-        "codecvt": "cpp"
+        "codecvt": "cpp",
+        "cinttypes": "cpp",
+        "numeric": "cpp",
+        "stack": "cpp",
+        "typeindex": "cpp",
+        "unordered_set": "cpp"
     }
    
 }
