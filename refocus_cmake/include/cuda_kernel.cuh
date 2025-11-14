@@ -28,14 +28,14 @@ public:
     const cv::Mat& image_mla) override;                    // CV_8UC3
     // vector<cv::Vec3f> currentimage() override;
 
-    void show_image(std::pair<vector<cv::Vec3f>, float> result_frame) override;    
+    void show_image(std::pair<vector<float>, float> result_frame) override;    
     int get_col() const override { return n_cols; }
     int get_row() const override { return n_rows; }
 private: 
     void cuda_preprocess( const cv::Mat& image_mla);
     void prepare_data();
     void extract_rows(const vector<CircleInf>& circleList, const float y_tolerance);
-    void preprocess(const vector<cv::Vec3f>& circles, vector<CircleInf>& sortedList);
+    // void preprocess(const vector<cv::Vec3f>& circles, vector<CircleInf>& sortedList);
     
    
     // float find_bestvalue(float z0, const float& fine_step);
@@ -54,18 +54,17 @@ private:
 
     CircleInf* d_rows_flat = nullptr;
     int* d_rows_offsets = nullptr;
-    // float* d_disp_x = nullptr;
-    // float* d_disp_y = nullptr;
-    Vec3f* d_imagefloat = nullptr;//transform_type
-    Vec3f* d_images = nullptr;//save the data after transform
-    Vec3f* d_volume = nullptr;
-    // float* d_volume = nullptr;
+   
+    float* d_imagefloat = nullptr;//transform_type
+    float* d_images = nullptr;//save the data after transform
+    float* d_volume = nullptr;
+  
   
     float* d_brenner_scores = nullptr;
     float* d_alpha = nullptr;//depths of the num_plane
-    Vec3f* d_volume_1 = nullptr;//generate display image
+    float* d_volume_1 = nullptr;//generate display image
     float* d_alpha_1 = nullptr;
-    Vec3f* d_image_1 = nullptr;
+    // Vec3f* d_image_1 = nullptr;
     // Vec3f* d_volume_n = nullptr;//estimated algorithm
     // float* d_brenner_scores_n = nullptr;
     // float* d_alpha_n = nullptr;  

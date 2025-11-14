@@ -48,9 +48,9 @@ struct FrameBuffer
 };
 struct ResultBuffer
 {
-    std::pair<vector<cv::Vec3f>, float> bufA, bufB;
-    atomic<std::pair<vector<cv::Vec3f>, float>*> writeBuf{&bufA};
-    atomic<std::pair<vector<cv::Vec3f>, float>*> readBuf{&bufB};
+    std::pair<vector<float>, float> bufA, bufB;
+    atomic<std::pair<vector<float>, float>*> writeBuf{&bufA};
+    atomic<std::pair<vector<float>, float>*> readBuf{&bufB};
     atomic<bool> newResult{false};
     mutex mtx;
     condition_variable cv;
@@ -72,7 +72,7 @@ class ImageProcessor {
     // pure virtual functions, only defining interfaces
     virtual void imageprocess_cuda(
     const cv::Mat& image_mla) = 0;         // CV_8UC3
-    virtual void show_image(std::pair<vector<cv::Vec3f>, float> result_frame) = 0;                    
+    virtual void show_image(std::pair<vector<float>, float> result_frame) = 0;                    
     // virtual vector<cv::Vec3f> currentimage() = 0;
     
     virtual int get_col() const = 0;

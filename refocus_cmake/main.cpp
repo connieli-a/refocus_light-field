@@ -23,23 +23,22 @@ int main(){
 
     cv::Mat image = cv::imread("data/Image__2025-11-12__17-27-20.bmp", cv::IMREAD_UNCHANGED);//be cutted
     cv::Mat image_mla;
-    cv::Mat frameshow;
-    cv::Mat frameshow_large;
+   
     
     if (image.empty()) {
         throw runtime_error("No image, please check the source");
         // cout << "no image, please check." << endl;
         return -1;
     }
-    // std::cout << "image type: " << image.type() << std::endl;
     if(image.type() != CV_8UC1){
         cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
     }else{
         image_gray = image;
     }
     
-    // cv::Mat image_gray_roi = image_gray(roi);
+   
     //hough transform
+    
     vector<cv::Vec3f> circles;
     HoughCircles(image_gray, circles, cv::HOUGH_GRADIENT, 1.1, 9, 100, 20, Rmin, Rmax);
     // HoughCircles(image_gray, circles, cv::HOUGH_GRADIENT, 1.2, 29, 100, 30, Rmin, Rmax)；
@@ -72,12 +71,10 @@ int main(){
         // cv::imshow("circle", image_gray);
         // cv::waitKey(0);
         //create an instance
-        //default value-->device:0, cuda graph: true
         std:: shared_ptr<ImageProcessor> refocus_pointer = ImageProcessor::create(circleList, tolerance, patch_size, rangey2 - rangey1, rangex2 - rangex1);
         int col = refocus_pointer->get_col();
         int row = refocus_pointer->get_row();
-        // cv::Mat frameshow(row, col, CV_8UC3, cv::Scalar(255,255,255));
-        // cv::Mat frameshow_large(row * 10, col * 10, CV_8UC3, cv::Scalar(255,255,255));
+       
    
         Pylon::PylonInitialize();
        
@@ -90,8 +87,9 @@ int main(){
 
            
         while(running){
-            
             bool has = false;
+            cv::Mat frameshow;
+            cv::Mat frameshow_large;
             {
                 std::lock_guard<std::mutex> dl(displayBuffer.mtx);
                 if(displayBuffer.hasNew){

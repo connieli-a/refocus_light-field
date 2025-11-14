@@ -39,7 +39,7 @@ void gpuThread(std::shared_ptr<ImageProcessor> refocus_pointer){
             break;
         frameBuffer.newFrame = false;
         lock.unlock();
-        cout<<"runn  the image process"<<endl;
+        // cout<<"run the image process"<<endl;
         // auto start = chrono::high_resolution_clock::now();
         cv::Mat* image_mla = frameBuffer.readBuf.load();
         refocus_pointer->imageprocess_cuda(*image_mla);
@@ -59,25 +59,25 @@ void showThread(std::shared_ptr<ImageProcessor> refocus_pointer){
         resultBuffer.newResult = false;
         lock.unlock();
         auto start = chrono::high_resolution_clock::now();
-        cout<<"run the show process"<<endl;
+        // cout<<"run the show process"<<endl;
         auto* rBuf = resultBuffer.readBuf.load();
         refocus_pointer->show_image(*rBuf);
         auto end = chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        cout<<"show process: "<< elapsed.count()<<"microseconds"<<endl;
+        cout<<"s: "<< elapsed.count()<<"us"<<endl;
     }
 }
-void GPUProcessor::show_image(std::pair<vector<cv::Vec3f>, float> result_frame){
+void GPUProcessor::show_image(std::pair<vector<float>, float> result_frame){
     
-    std::vector<cv::Vec3f> localFrame = result_frame.first;
+    std::vector<float> localFrame = result_frame.first;
     float z_best = result_frame.second;
    
-    cv::Mat img(n_rows, n_cols, CV_32FC3, localFrame.data());
+    cv::Mat img(n_rows, n_cols, CV_32FC1, localFrame.data());
     
     cv::Mat img8, img8_large;
     // cv::Mat img_count = img.clone();
     // 转为 8-bit 显示
-    img.convertTo(img8, CV_8UC3, 255.0);
+    img.convertTo(img8, CV_8UC1, 255.0);
     cv::resize(img8, img8_large, cv::Size(), 10.0 ,10.0,cv::INTER_NEAREST);
     // std::string filename = folder + "/output"+ std::to_string(i) +".png";
     // cv::imwrite(filename, img8_large);
@@ -88,8 +88,8 @@ void GPUProcessor::show_image(std::pair<vector<cv::Vec3f>, float> result_frame){
     cv::Point org_1((img8_large.cols - 180), 150);
    
     float displacement = 790.13 * (1 - z_best)/400 *1000;
-    cv::putText(img8_large, to_string(displacement), org, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255,0,0), 1, 1);
-    cv::putText(img8_large, to_string(z_best), org_1, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(0,255,0), 1, 1);
+    cv::putText(img8_large, to_string(displacement), org, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255), 1, 1);
+    cv::putText(img8_large, to_string(z_best), org_1, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255), 1, 1);
    
     
     {
@@ -111,42 +111,41 @@ void cameraThread(){
         //exposure time
         CFloatPtr exposureTime(nodemap.GetNode("ExposureTime"));
         if(IsWritable(exposureTime))
-        exposureTime->SetValue(300.0);//µs 7000
+        exposureTime->SetValue(200.0);//µs 7000
         CIntegerPtr width(nodemap.GetNode("Width"));
         CIntegerPtr height(nodemap.GetNode("Height"));
         CIntegerPtr offsetx(nodemap.GetNode("OffsetX"));
         CIntegerPtr offsety(nodemap.GetNode("OffsetY"));
         //color camera
-        CEnumerationPtr balancesector(nodemap.GetNode("BalanceWhiteAuto"));
-        CEnumerationPtr balanceRatioSelector(nodemap.GetNode("BalanceRatioSelector"));
-        CFloatPtr balanceRatio(nodemap.GetNode("BalanceRatio"));
+        // CEnumerationPtr balancesector(nodemap.GetNode("BalanceWhiteAuto"));
+        // CEnumerationPtr balanceRatioSelector(nodemap.GetNode("BalanceRatioSelector"));
+        // CFloatPtr balanceRatio(nodemap.GetNode("BalanceRatio"));
         if(IsWritable(width)) width->SetValue(rangex2 - rangex1);
         if(IsWritable(height)) height->SetValue(rangey2 - rangey1);
         if(IsWritable(offsetx)) offsetx->SetValue(rangex1);
         if(IsWritable(offsety)) offsety->SetValue(rangey1);
-        if(IsWritable(balancesector)) balancesector->FromString("Off");
-        if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Red");
-        if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.0);
-        if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Green");
-        if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.0);
-        if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Blue");
-        if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.5);
+        // if(IsWritable(balancesector)) balancesector->FromString("Off");
+        // if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Red");
+        // if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.0);
+        // if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Green");
+        // if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.0);
+        // if(IsWritable(balanceRatioSelector)) balanceRatioSelector->FromString("Blue");
+        // if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.5);
 
         camera.StartGrabbing(Pylon::GrabStrategy_OneByOne);
         // camera.StartGrabbing(10, Pylon::GrabStrategy_OneByOne);
         Pylon::CGrabResultPtr ptrGrabResult;
         Pylon::CPylonImage pylonImage;
         Pylon::CImageFormatConverter converter;
-        converter.OutputPixelFormat = Pylon::PixelType_BGR8packed;
+        converter.OutputPixelFormat = Pylon::PixelType_Mono8;
         while(running && camera.IsGrabbing()){
-            cout<<"run the camera grabbing process"<<endl;
+            // cout<<"run the camera grabbing process"<<endl;
             auto start = chrono::high_resolution_clock::now();
             camera.RetrieveResult(INFINITE, ptrGrabResult, Pylon::TimeoutHandling_ThrowException);
             if(ptrGrabResult->GrabSucceeded()){
                 
                 
                 converter.Convert(pylonImage, ptrGrabResult);
-                
                 cv::Mat frame(static_cast<int>(ptrGrabResult->GetHeight()), static_cast<int>(ptrGrabResult->GetWidth()), CV_8UC1, (uint8_t*)pylonImage.GetBuffer());
                 
                 // double scaleX = screenWidth / double(frame.cols);
@@ -160,7 +159,8 @@ void cameraThread(){
                 
                 // cv::resize(frame, display, cv::Size(), scale, scale); // 使用统一缩放比例
                 // cv::namedWindow("Camera", cv::WINDOW_NORMAL);
-                // cv::imshow("Camera", display);
+                // cv::imshow("Camera", frame);
+                // cv::waitKey(1);
                 // imwrite("Camera.bmp",display);
                 
                 // image_mla = cv::imread("data/original_20250617_180038.bmp");
@@ -182,12 +182,12 @@ void cameraThread(){
             }
             auto end = chrono::high_resolution_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-            cout<<"camera grab process: "<< elapsed.count()<<"microseconds"<<endl;
+            cout<<"c: "<< elapsed.count()<<"us"<<endl;
         }
         running = false;
         camera.StopGrabbing();
         camera.Close();
     } catch(const Pylon::GenericException &e){
         std::cerr<<"An exception occurued:"<<e.GetDescription()<<std::endl;
-        } 
+    } 
 }
