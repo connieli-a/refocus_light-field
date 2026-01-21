@@ -12,13 +12,16 @@ class DAControl{
         DAControl();
         ~DAControl();
         void outputLight(float value);
+        void outputVoltage(float value);
+       
     private:
         HANDLE		hDeviceHandle;		// Device handle
         WORD		Data[2];			// Output data storage area
         DASMPLCHREQ	DaSmplChReq[2];		// Output conditions setting structure
         int			nRet;
         DABOARDSPEC DaBoardSpec;
-
+        float DA_MIN = -10;
+        float DA_MAX = 10;
         void getData(float value);
         
 };

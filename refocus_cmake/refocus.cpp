@@ -87,7 +87,8 @@ void GPUProcessor::show_image(std::pair<vector<float>, float> result_frame){
     cv::Point org((img8_large.cols - 180), 50);
     cv::Point org_1((img8_large.cols - 180), 150);
    
-    float displacement = 790.13 * (1 - z_best)/400 *1000;
+    float displacement = 790.13 * (1 - z_best)/400 *100;
+    // float displacement = 790.13 * (1 - z_best)/400 *1000;
     cv::putText(img8_large, to_string(displacement), org, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255), 1, 1);
     cv::putText(img8_large, to_string(z_best), org_1, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255), 1, 1);
    
@@ -97,7 +98,7 @@ void GPUProcessor::show_image(std::pair<vector<float>, float> result_frame){
         displayBuffer.img = img8.clone(); // clone 减少共享内存竞态
         displayBuffer.img_large = img8_large.clone();
         displayBuffer.hasNew = true;
-       
+
     }
 
 }
@@ -111,7 +112,7 @@ void cameraThread(){
         //exposure time
         CFloatPtr exposureTime(nodemap.GetNode("ExposureTime"));
         if(IsWritable(exposureTime))
-        exposureTime->SetValue(200.0);//µs 7000
+        exposureTime->SetValue(1800.0);//µs 7000
         CIntegerPtr width(nodemap.GetNode("Width"));
         CIntegerPtr height(nodemap.GetNode("Height"));
         CIntegerPtr offsetx(nodemap.GetNode("OffsetX"));
@@ -167,6 +168,7 @@ void cameraThread(){
                 // image_mla_roi = image_mla(roi).clone();
                 
                 image_mla_roi = frame.clone();
+               
                 if (image_mla_roi.empty()) {
                     std::cerr << "ROI is empty!" << std::endl;
                 }
@@ -179,6 +181,12 @@ void cameraThread(){
 
                 frameBuffer.newFrame = true;
                 frameBuffer.cv.notify_one();
+
+                {
+                    std::lock_guard<std::mutex> lk(cameraDisplayBuffer.mtx);
+                    cameraDisplayBuffer.fullframe = frame.clone();
+                    cameraDisplayBuffer.hasNew = true;
+                }
             }
             auto end = chrono::high_resolution_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

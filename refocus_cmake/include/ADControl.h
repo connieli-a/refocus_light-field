@@ -8,31 +8,26 @@
 // -------------------------------------------------------
 // コールバック関数
 // -------------------------------------------------------
-#ifdef _WIN64
-void CALLBACK EventProc(PVOID dwUser)
-{
-	printf("Event callback fired!\n");
-}
-#else
-void CALLBACK EventProc(DWORD dwUser){}
-#endif
+
 
 class ADControl{
     public:
         
-        ADControl(HANDLE* hDeviceHandle);
+        ADControl();
 	    ~ADControl();
+        bool IsReady() const { return initialized; }
+        int GetData(float& voltage);
     private:
         ADBOARDSPEC 	BoardSpec;
         ADSMPLREQ		AdSmplConfig;
         unsigned char	bSmplData[2];
         unsigned short	wSmplData[2];
         unsigned long	dwSmplData[2];
-        int		nRet;
 	    HANDLE	hDeviceHandle;		// デバイスハンドル
-
-        int Initialization(HANDLE* hDeviceHandle);
-        int GetData(HANDLE hDeviceHandle);
-        int End();
+        bool initialized = false;
+    
+        int Initialization();
+        void End();
 };
 
+extern ADControl ad;

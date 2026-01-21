@@ -32,7 +32,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "/O2 /Ob2 /DNDEBUG")
 
 
 
-add_executable (refocus_cmake "main.cpp" "refocus.cpp" "kernel.cu" "globals.cpp" "DAControl.cpp")
+add_executable (refocus_cmake "main.cpp" "refocus.cpp" "kernel.cu" "globals.cpp" "DAControl.cpp" "ADControl.cpp")
 
 # 让 CMake 控制运行库（cpp + cuda 都会生效）
 cmake_policy(SET CMP0091 NEW)
@@ -52,7 +52,7 @@ add_compile_options(/wd611 /wd9025)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -diag-suppress=611")
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -I${OpenCV_INCLUDE_DIRS}")
 # TODO: 如有需要，请添加测试并安装目标。
-target_include_directories(refocus_cmake PRIVATE ${OpenCV_INCLUDE_DIRS} ${CUDAToolkit_INCLUDE_DIRS} )
+target_include_directories(refocus_cmake PRIVATE ${OpenCV_INCLUDE_DIRS} ${CUDAToolkit_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 #target_link_directories(refocus_cmake PRIVATE ${CMAKE_SOURCE_DIR}/refocus_cmake/lib/GPC3100/x64 ${CMAKE_SOURCE_DIR}/refocus_cmake/lib/GPC3300)
 target_link_libraries(refocus_cmake 
     PRIVATE pylon::pylon 

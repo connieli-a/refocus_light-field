@@ -20,7 +20,7 @@ int main(){
     int screenWidth = 1536; // 屏幕宽
     int screenHeight = 864; // 屏幕高
 
-
+   
     cv::Mat image = cv::imread("data/Image__2025-11-12__17-27-20.bmp", cv::IMREAD_UNCHANGED);//be cutted
     cv::Mat image_mla;
    
@@ -42,7 +42,7 @@ int main(){
     vector<cv::Vec3f> circles;
     HoughCircles(image_gray, circles, cv::HOUGH_GRADIENT, 1.1, 9, 100, 20, Rmin, Rmax);
     // HoughCircles(image_gray, circles, cv::HOUGH_GRADIENT, 1.2, 29, 100, 30, Rmin, Rmax)；
-
+    // da.outputVoltage(5);
     if(!circles.empty()){
       
         //orgnaize the array
@@ -90,6 +90,7 @@ int main(){
             bool has = false;
             cv::Mat frameshow;
             cv::Mat frameshow_large;
+            cv::Mat camimage;
             {
                 std::lock_guard<std::mutex> dl(displayBuffer.mtx);
                 if(displayBuffer.hasNew){
@@ -97,8 +98,10 @@ int main(){
                     frameshow = std::move(displayBuffer.img);
                     displayBuffer.hasNew = false;
                     has = true;
+                   
                 }
             }
+            
             if(has){
                 if(!frameshow_large.empty()){
                     cv::imshow("Volume Slice", frameshow_large);
@@ -107,6 +110,17 @@ int main(){
                     cv::imshow("Volume Slice_original", frameshow);
                 }
             }
+            {
+                std::lock_guard<std::mutex> cl(cameraDisplayBuffer.mtx);
+                if(cameraDisplayBuffer.hasNew){
+                    camimage = cameraDisplayBuffer.fullframe.clone();
+                    cameraDisplayBuffer.hasNew = false;
+                }
+            }
+            if(!camimage.empty()){
+                cv::imshow("Camera show", camimage);
+            }
+
             if (cv::waitKey(1) == 27) // ESC 退出
             {
                 running = false;

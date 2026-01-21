@@ -39,11 +39,10 @@ private:
     
    
     // float find_bestvalue(float z0, const float& fine_step);
-    // float Equation_solving( vector<float>& y, const vector<float>& x);
     float quadratic_fit_points(const std::vector<float>& y, const std::vector<float>& x);
-    // float parabolic_peak_refine(const vector<float>& brenner_scores, const vector<float>& depth);
+    // float get_local_5points(const std::vector<float>& scores, int idx);
     void generate_best_view(const float& z_best, float& score);
-    
+    void stage_move(const float z_best);
     //--------related CUDA
     
     // int32_t m_device ;
@@ -92,9 +91,13 @@ private:
     // int f = 2500;// the focal length of the lens micrometer
     // int num_plane = 5;
     vector<float> alpha_range;
-    float start = 0.85;
+    float start = 0.65;
     float end = 1.25;
     float step = static_cast<float>(end - start) / static_cast<float>(num_depth_plane - 1);
-  
-    
+    float THRESHOLD_MIN = 2.0;
+    float THRESHOLD_MAX = 40;
+    float RANGE_MIN = 5;
+    float RANGE_MAX = 95;
+   
+    int frame_id = 0;
 };

@@ -61,7 +61,11 @@ struct DisplayBuffer {
     cv::Mat img_large;
     bool hasNew = false;
 } ;
-
+struct CameraDisplayBuffer {
+    std::mutex mtx;
+    cv::Mat fullframe;
+    bool hasNew = false;
+};
 class ImageProcessor {
     public:
     virtual ~ImageProcessor() = default;
@@ -89,6 +93,7 @@ extern ResultBuffer resultBuffer;
 extern std::atomic<bool> running;
 
 extern DisplayBuffer displayBuffer;
+extern CameraDisplayBuffer cameraDisplayBuffer;
 extern int rangex1;
 extern int rangex2;
 extern int rangey1;
