@@ -519,8 +519,9 @@ void GPUProcessor::imageprocess_cuda(
     }
    
     // cout <<"alpha: "<< z_best << endl;
+    da.outputLight(z_best, 2);//turn on the light and measure the latency time
+
     stage_move(z_best);
-    // da.outputLight(z_best);//turn on the light and measure the latency time
     generate_best_view(z_best, max_score);
 
     // ------------
@@ -541,13 +542,19 @@ void GPUProcessor::stage_move(const float z_best){
     float displacement = 790.13 * (1 - z_best)/400 *100 ;
     float ad_voltage;
     cout<<"displacement"<<displacement<<endl;
+    
     if(fabs(displacement) > THRESHOLD_MIN && fabs(displacement) < THRESHOLD_MAX){
     //MOVE
-        if (!ad.IsReady())
+        if (!ad.IsReady()){
+            cout<<"11";
             return;
-        if (ad.GetData(ad_voltage) != 0)
+        }
+        if (ad.GetData(ad_voltage) != 0){
+            cout<<"222";
             return;
+        }
         float current_position = ad_voltage * 10.0f;
+        cout<<"current_position"<<current_position<<endl;
         float target_position = current_position - displacement;
         cout<<"target position"<<target_position<<endl;
         if (target_position < RANGE_MIN || target_position > RANGE_MAX){
@@ -557,8 +564,8 @@ void GPUProcessor::stage_move(const float z_best){
         float outvoltage = (target_position - 50.0f) * 2.0f /10.0f;
         cout<<"outvoltage"<<outvoltage<<endl;
         
-        da.outputVoltage(outvoltage);
-        // Sleep(100);
+        da.outputVoltage(outvoltage, 1);
+
        
         
             

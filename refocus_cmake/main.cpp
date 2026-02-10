@@ -85,8 +85,8 @@ int main(){
         SetThreadPriority(t_cam.native_handle(), THREAD_PRIORITY_TIME_CRITICAL);
         SetThreadPriority(t_show.native_handle(), THREAD_PRIORITY_BELOW_NORMAL);
 
-           
-        while(running){
+          
+        while(running ){
             bool has = false;
             cv::Mat frameshow;
             cv::Mat frameshow_large;
@@ -128,14 +128,14 @@ int main(){
             }
             
            
-            
+           
         }
      
     
         
                 
     
-        
+      
         frameBuffer.cv.notify_all();
         resultBuffer.cv.notify_all();
         t_gpu.join();

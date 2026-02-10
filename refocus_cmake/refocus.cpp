@@ -134,7 +134,7 @@ void cameraThread(){
         // if(IsWritable(balanceRatio)) balanceRatio->SetValue(1.5);
 
         camera.StartGrabbing(Pylon::GrabStrategy_OneByOne);
-        // camera.StartGrabbing(10, Pylon::GrabStrategy_OneByOne);
+        // camera.StartGrabbing(200, Pylon::GrabStrategy_OneByOne);
         Pylon::CGrabResultPtr ptrGrabResult;
         Pylon::CPylonImage pylonImage;
         Pylon::CImageFormatConverter converter;

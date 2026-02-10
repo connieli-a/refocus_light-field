@@ -11,8 +11,8 @@ class DAControl{
     public:
         DAControl();
         ~DAControl();
-        void outputLight(float value);
-        void outputVoltage(float value);
+        void outputLight(float value, int channel);
+        void outputVoltage(float value, int channel);
        
     private:
         HANDLE		hDeviceHandle;		// Device handle
@@ -22,7 +22,7 @@ class DAControl{
         DABOARDSPEC DaBoardSpec;
         float DA_MIN = -10;
         float DA_MAX = 10;
-        void getData(float value);
+        void getData(float value, int channel);
         
 };
 

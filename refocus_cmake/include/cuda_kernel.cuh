@@ -96,8 +96,8 @@ private:
     float step = static_cast<float>(end - start) / static_cast<float>(num_depth_plane - 1);
     float THRESHOLD_MIN = 2.0;
     float THRESHOLD_MAX = 40;
-    float RANGE_MIN = 5;
-    float RANGE_MAX = 95;
+    float RANGE_MIN = 1;
+    float RANGE_MAX = 99;
    
     int frame_id = 0;
 };
