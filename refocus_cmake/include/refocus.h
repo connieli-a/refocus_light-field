@@ -37,6 +37,13 @@ struct Result
     float brenner;
     float z;
 };
+struct ResultData
+{
+    std::vector<float> center_img;
+    std::vector<float> best_image;
+    float best_value;
+
+};
 struct FrameBuffer
 {
     cv::Mat bufferA, bufferB;
@@ -48,9 +55,13 @@ struct FrameBuffer
 };
 struct ResultBuffer
 {
-    std::pair<vector<float>, float> bufA, bufB;
-    atomic<std::pair<vector<float>, float>*> writeBuf{&bufA};
-    atomic<std::pair<vector<float>, float>*> readBuf{&bufB};
+    ResultData bufA;
+    ResultData bufB;
+    std::atomic<ResultData*> writeBuf{&bufA};
+    std::atomic<ResultData*> readBuf{&bufB};
+    // std::pair<vector<float>, float> bufA, bufB;
+    // atomic<std::pair<vector<float>, float>*> writeBuf{&bufA};
+    // atomic<std::pair<vector<float>, float>*> readBuf{&bufB};
     atomic<bool> newResult{false};
     mutex mtx;
     condition_variable cv;
@@ -59,6 +70,7 @@ struct DisplayBuffer {
     std::mutex mtx;
     cv::Mat img;
     cv::Mat img_large;
+    cv::Mat img_center;//midcenter_subaperture image
     bool hasNew = false;
 } ;
 struct CameraDisplayBuffer {
@@ -76,7 +88,8 @@ class ImageProcessor {
     // pure virtual functions, only defining interfaces
     virtual void imageprocess_cuda(
     const cv::Mat& image_mla) = 0;         // CV_8UC3
-    virtual void show_image(std::pair<vector<float>, float> result_frame) = 0;                    
+    virtual void show_image(const ResultData& result_frame) = 0;  
+                  
     // virtual vector<cv::Vec3f> currentimage() = 0;
     
     virtual int get_col() const = 0;
@@ -102,6 +115,7 @@ extern cv::Mat image_mla_roi;
 void gpuThread(std::shared_ptr<ImageProcessor> refocus_pointer);
 void showThread(std::shared_ptr<ImageProcessor> refocus_pointer);
 void cameraThread();
+std::pair<float, float> get2d_coordinate(const cv::Mat& center_image, int black_threshold);
 
 
 

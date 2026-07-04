@@ -2,7 +2,8 @@
 #include "include/cuda_kernel.cuh"
 
 #include <iostream>
-
+#include <limits>
+#include <cmath>
 
 //  * @param device 使用するGPUのID (デフォルトは0)
 //  * @param useGraph CUDA Graphを使用するかどうか (デフォルトはtrue)
@@ -67,18 +68,25 @@ void showThread(std::shared_ptr<ImageProcessor> refocus_pointer){
         cout<<"s: "<< elapsed.count()<<"us"<<endl;
     }
 }
-void GPUProcessor::show_image(std::pair<vector<float>, float> result_frame){
+void GPUProcessor::show_image(const ResultData& result_frame){
     
-    std::vector<float> localFrame = result_frame.first;
-    float z_best = result_frame.second;
-   
+    std::vector<float> localFrame = result_frame.best_image;
+    float z_best = result_frame.best_value;
+    std::vector<float> centerFrame = result_frame.center_img;
     cv::Mat img(n_rows, n_cols, CV_32FC1, localFrame.data());
-    
-    cv::Mat img8, img8_large;
+    cv::Mat center_img(n_rows, n_cols, CV_32FC1, centerFrame.data());
+
+    cv::Mat img8, img8_large, center_img8, center_img8_large;
     // cv::Mat img_count = img.clone();
     // 转为 8-bit 显示
     img.convertTo(img8, CV_8UC1, 255.0);
     cv::resize(img8, img8_large, cv::Size(), 10.0 ,10.0,cv::INTER_NEAREST);
+    center_img.convertTo(center_img8, CV_8UC1, 255.0);
+    cv::resize(center_img8, center_img8_large, cv::Size(), 10.0 ,10.0,cv::INTER_NEAREST);
+    auto center_coordinate = get2d_coordinate(center_img8, 220);
+    if(std::isnan(center_coordinate.first) || std::isnan(center_coordinate.second))
+        std::cout<<"coordinate is NA."<<std::endl;
+
     // std::string filename = folder + "/output"+ std::to_string(i) +".png";
     // cv::imwrite(filename, img8_large);
     // cv::imwrite("shift_and_sum_original.bmp", img8);
@@ -86,17 +94,26 @@ void GPUProcessor::show_image(std::pair<vector<float>, float> result_frame){
     // // // 显示
     cv::Point org((img8_large.cols - 180), 50);
     cv::Point org_1((img8_large.cols - 180), 150);
-   
+    
     float displacement = 790.13 * (1 - z_best)/400 *100;
     // float displacement = 790.13 * (1 - z_best)/400 *1000;
     cv::putText(img8_large, to_string(displacement), org, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255), 1, 1);
     cv::putText(img8_large, to_string(z_best), org_1, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255), 1, 1);
-   
-    
+    cv::putText(center_img8_large, to_string(center_coordinate.first * 10.f), org, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(0), 1, 1);
+    cv::putText(center_img8_large, to_string(center_coordinate.second * 10.f), org_1, cv::FONT_HERSHEY_COMPLEX, 1, cv::Scalar(255), 1, 1);
+    cv::Mat center_color;
+    cv::cvtColor(center_img8_large, center_color, cv::COLOR_GRAY2BGR);
+    cv::drawMarker(center_color,     
+        cv::Point(
+        cvRound(center_coordinate.first * 10.0f),
+        cvRound(center_coordinate.second * 10.0f)
+    ), cv::Scalar(0, 0, 255), cv::MARKER_CROSS, 18, 1);
+
     {
         std::lock_guard<std::mutex> dl(displayBuffer.mtx);
         displayBuffer.img = img8.clone(); // clone 减少共享内存竞态
         displayBuffer.img_large = img8_large.clone();
+        displayBuffer.img_center = center_color.clone();
         displayBuffer.hasNew = true;
 
     }
@@ -112,7 +129,7 @@ void cameraThread(){
         //exposure time
         CFloatPtr exposureTime(nodemap.GetNode("ExposureTime"));
         if(IsWritable(exposureTime))
-        exposureTime->SetValue(1800.0);//µs 7000
+        exposureTime->SetValue(2000.0);//µs 7000
         CIntegerPtr width(nodemap.GetNode("Width"));
         CIntegerPtr height(nodemap.GetNode("Height"));
         CIntegerPtr offsetx(nodemap.GetNode("OffsetX"));
@@ -198,4 +215,37 @@ void cameraThread(){
     } catch(const Pylon::GenericException &e){
         std::cerr<<"An exception occurued:"<<e.GetDescription()<<std::endl;
     } 
+}
+
+std::pair<float, float> get2d_coordinate(const cv::Mat& center_image, int black_threshold){
+    if(center_image.empty())
+     return {
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::quiet_NaN()
+     };
+     cv::Mat black_mask;
+     cv::threshold(center_image, black_mask, black_threshold, 255, cv::THRESH_BINARY_INV);
+
+     cv::Mat labels, stats, centroids;
+     int n_labels = cv::connectedComponentsWithStats(black_mask, labels, stats, centroids, 8, CV_32S);
+
+     int best_label = -1;
+     int best_area = 0;
+     for(int label = 1; label< n_labels; label++){
+        int area = stats.at<int>(label, cv::CC_STAT_AREA);
+        if(area > best_area){
+            best_area = area;
+            best_label = label;
+        }
+     }
+     if(best_label < 0){
+        return  {
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::quiet_NaN()
+        };
+    }
+    return {
+        static_cast<float>(centroids.at<double>(best_label, 0)),
+        static_cast<float>(centroids.at<double>(best_label, 1))
+    };
 }

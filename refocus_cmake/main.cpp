@@ -90,12 +90,14 @@ int main(){
             bool has = false;
             cv::Mat frameshow;
             cv::Mat frameshow_large;
+            cv::Mat framecenter;
             cv::Mat camimage;
             {
                 std::lock_guard<std::mutex> dl(displayBuffer.mtx);
                 if(displayBuffer.hasNew){
                     frameshow_large = std::move(displayBuffer.img_large);
                     frameshow = std::move(displayBuffer.img);
+                    framecenter = std::move(displayBuffer.img_center);
                     displayBuffer.hasNew = false;
                     has = true;
                    
@@ -109,6 +111,10 @@ int main(){
                 if(!frameshow.empty()){
                     cv::imshow("Volume Slice_original", frameshow);
                 }
+                if(!framecenter.empty()){
+                    cv::imshow("mid_centersubaperture", framecenter);
+                }else
+                    std::cout<<"cannot show the mid_centersubaperture image"<<std::endl;
             }
             {
                 std::lock_guard<std::mutex> cl(cameraDisplayBuffer.mtx);

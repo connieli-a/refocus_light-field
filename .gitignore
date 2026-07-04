@@ -1,9 +1,9 @@
-".vs/" 
-"*.ipch" 
-"*.pdb" 
-"*.obj" 
-"*.exe" 
-"build/" 
-"out/"
-"*.dll"
+.vs/
+*.ipch
+*.pdb
+*.obj
+*.exe
+build/
+out/
+*.dll
 

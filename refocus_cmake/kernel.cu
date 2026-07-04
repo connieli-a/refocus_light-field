@@ -172,6 +172,7 @@ __global__ void transform_kernel( float* d_img, int image_rows, int image_cols,
     float bgr = bilinear_lookup(d_img, image_rows, image_cols,  x, y);
     out[idx_out] = bgr;
 }
+
 // __global__ void transform_kernel_centerview( Vec3f* d_img, int image_rows, int image_cols, 
 //     const CircleInf* __restrict__ rows_flat, const int* __restrict__ rows_offsets,
 //     int total_circles, int n_rows, int n_cols, int patch_size,
@@ -400,6 +401,13 @@ void GPUProcessor::imageprocess_cuda(
     if(err_transform != cudaSuccess) printf("transform_Kernel error: %s\n", cudaGetErrorString(err_transform));
     cudaDeviceSynchronize();
    
+
+
+    // if(!center_img.empty()){
+    //     cv::imshow("center image", center_show);
+    //     cv::waitKey(1);
+    // }else
+    //     std::cout<<"center_show is empty"<<std::endl;
     // std::vector<float> h_images(n_rows * n_cols * patch_area );
     // cudaMemcpy(h_images.data(), d_images, h_images.size() * sizeof(float), cudaMemcpyDeviceToHost);
     
@@ -423,6 +431,8 @@ void GPUProcessor::imageprocess_cuda(
     //     }
     // }
     // kernel 配置
+
+
     dim3 block(16, 16);
     dim3 grid((n_cols+15)/16, (n_rows+15)/16, num_depth_plane);
     
@@ -539,7 +549,7 @@ void GPUProcessor::imageprocess_cuda(
     
 }
 void GPUProcessor::stage_move(const float z_best){
-    float displacement = 790.13 * (1 - z_best)/400 *100 ;
+    float displacement = 790.13 * (1 - z_best)/400 *100;
     float ad_voltage;
     cout<<"displacement"<<displacement<<endl;
     
@@ -555,12 +565,13 @@ void GPUProcessor::stage_move(const float z_best){
         }
         float current_position = ad_voltage * 10.0f;
         cout<<"current_position"<<current_position<<endl;
-        float target_position = current_position - displacement;
+        float target_position = current_position - displacement;//-
         cout<<"target position"<<target_position<<endl;
         if (target_position < RANGE_MIN || target_position > RANGE_MAX){
             cout<<"target position is out of the range"<<endl;
             return;
         }
+        // float outvoltage = (54 - 50.0f) * 2.0f /10.0f;
         float outvoltage = (target_position - 50.0f) * 2.0f /10.0f;
         cout<<"outvoltage"<<outvoltage<<endl;
         
@@ -743,6 +754,9 @@ float parabolic_3point(const std::vector<float>& scores, int idx){
  
     
 // }
+
+
+
 void GPUProcessor::generate_best_view(const float& z_best, float& score){
     dim3 block(16, 16);
     dim3 grid_1((n_cols+15)/16, (n_rows+15)/16, 1);
@@ -760,10 +774,25 @@ void GPUProcessor::generate_best_view(const float& z_best, float& score){
     cudaMemcpyAsync(h_volume.data(), d_volume_1, h_volume.size() * sizeof(float), cudaMemcpyDeviceToHost, m_stream);
     cudaDeviceSynchronize();
    
+
+    //get 2d coordinate
+    std::vector<float> center_img_host(n_rows * n_cols);  
+    size_t center_view_idx = static_cast<size_t>(mid_idx) * patch_size + mid_idx;
+    size_t offset = center_view_idx * static_cast<size_t>(n_rows) * n_cols;
+    // int offset = (mid_idx * patch_size + mid_idx) * n_rows * n_cols;
+    cudaMemcpyAsync(center_img_host.data(), d_images + offset, sizeof(float) * n_rows * n_cols, cudaMemcpyDeviceToHost, m_stream);
+    cudaError_t err_center = cudaStreamSynchronize(m_stream);
+    if(err_center != cudaSuccess) printf("center image copy error: %s\n", cudaGetErrorString(err_center));
+    // cudaDeviceSynchronize();
+    // cv::Mat center_img(n_rows, n_cols, CV_32FC1, center_img_host.data());
+    // cv::Mat center_show;
+    // center_show.convertTo(center_show, CV_8UC1, 255);
+
     //save the data into the buffer
     auto* wBuf = resultBuffer.writeBuf.load();
-    wBuf->first = h_volume;
-    wBuf->second = z_best;
+    wBuf->best_image = h_volume;
+    wBuf->best_value = z_best;
+    wBuf->center_img = center_img_host;
 
     auto* oldRead = resultBuffer.readBuf.load();
     resultBuffer.readBuf.store(wBuf);

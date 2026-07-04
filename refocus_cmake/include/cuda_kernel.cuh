@@ -28,7 +28,7 @@ public:
     const cv::Mat& image_mla) override;                    // CV_8UC3
     // vector<cv::Vec3f> currentimage() override;
 
-    void show_image(std::pair<vector<float>, float> result_frame) override;    
+    void show_image(const ResultData& result_frame) override;    
     int get_col() const override { return n_cols; }
     int get_row() const override { return n_rows; }
 private: 
